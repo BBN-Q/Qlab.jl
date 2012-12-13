@@ -14,7 +14,7 @@ macro timeit(ex)
         for ct = 1:numRepeats
             times[ct] = @elapsed $(esc(ex))
         end
-        println("Mean: $(mean(times)), Best: $(min(times))")
+        @printf("Mean: %fs, Best: %fs (%d runs)\n", mean(times), min(times), numRepeats)
         mean(times)
     end
 end
