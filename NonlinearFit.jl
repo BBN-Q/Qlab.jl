@@ -27,11 +27,11 @@ function leastsq(f, x0, fargs, opts::Options)
     iterCt = 1
     x = x0
     delta_x = Inf
-    prevNorm = 0.0
+    prevNorm = Inf
 
     while (iterCt < maxIter && funEvals < maxFunEvals && delta_x > tolX)
         (fcur, J) = f(x, fargs...)
-        fnorm = norm(fcur, 1)
+        fnorm = norm(fcur)
         funEvals += 1
         if funEvals > maxFunEvals
             print("Exceeded maximum number of function evaluations, exiting...")
@@ -46,12 +46,12 @@ function leastsq(f, x0, fargs, opts::Options)
             lambda *= max(.1, eps())
         else
             # try to increase lambda to get going in the right direction again
-            while (prevNorm < from)
+            while (fnorm > prevNorm)
                 lambda *= 10
-                delta_x = (J.'*J + lambda*diagm(J.'*J)) \ (J.' * fnorm)
+                delta_x = (J.'*J + lambda*diagm(J.'*J)) \ (J.' * fcur)
                 x += delta_x
                 (fcur, J) = f(x, fargs...)
-                fnorm = norm(fcur, 1)
+                fnorm = norm(fcur)
                 funEvals += 1
                 if funEvals > maxFunEvals
                     print("Exceeded maximum number of function evaluations, exiting...")
@@ -63,7 +63,7 @@ function leastsq(f, x0, fargs, opts::Options)
         # find delta_x by solving the system:
         # (J^T*J + lambda * diag(J^T*J)) * delta_x = J^T * fnorm
         # also try diag(J^T*J) = sum(J.^2,1)
-        delta_x = (J.'*J + lambda*diag(J.'*J)) \ (J.' * fnorm)
+        delta_x = (J.'*J + lambda*diag(J.'*J)) \ (J.' * fcur)
         
         x += delta_x
         prevNorm = fnorm
