@@ -4,15 +4,15 @@ require("Options")
 using Base
 using OptionsMod
 
-function curve_fit(f, xdata, ydata, p0...)
+function curve_fit(f::Function, xdata, ydata, p0...)
     # assumes f(xdata, params...) = ydata + epsilon
     # minimizes sum(ydata - f(xdata)).^2 using leastsq()
 end
 
-function leastsq(f, x0, fargs, opts::Options)
+function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
     # finds min_x sum(f(x).^2) using the Levenberg-Marquardt algorithm
-    # The function f may return one value or two. If f returns two values, the
-    # second is interpreted as the Jacobian
+    # The function f should take an input vector of length n and return an output vector of length m
+    # The function g is the Jacobian of f, and should be an m x n matrix
     # x0 is an initial guess for the solution
     # fargs is a tuple of additional arguments to pass to f
     # available options:
@@ -29,44 +29,55 @@ function leastsq(f, x0, fargs, opts::Options)
     delta_x = Inf
     prevNorm = Inf
 
+    fcur = f(x, fargs...)
+    residual = norm(fcur)
+    funEvals = 1
+
     while (iterCt < maxIter && funEvals < maxFunEvals && delta_x > tolX)
-        (fcur, J) = f(x, fargs...)
-        fnorm = norm(fcur)
+        prevNorm = residual
+        fcur = f(x, fargs...)
+        J = g(x, fargs...)
+        residual = norm(fcur)
         funEvals += 1
         if funEvals > maxFunEvals
-            print("Exceeded maximum number of function evaluations, exiting...")
-            break
+            error("Exceeded maximum number of function evaluations, exiting...")
         end
-        if iterCt > 1 && abs(fnorm - prevNorm) < tolF
-            print("Function decreased by less than tolF, exiting...")
-            break
+        if iterCt > 1 && abs(residual - prevNorm) < tolF
+            error("Function decreased by less than tolF, exiting...")
         end
-        if fnorm < prevNorm
+        if residual < prevNorm
             # try to reduce lambda
             lambda *= max(.1, eps())
         else
             # try to increase lambda to get going in the right direction again
-            while (fnorm > prevNorm)
+            while (residual > prevNorm)
                 lambda *= 10
-                delta_x = (J.'*J + lambda*diagm(J.'*J)) \ (J.' * fcur)
-                x += delta_x
-                (fcur, J) = f(x, fargs...)
-                fnorm = norm(fcur)
+                if lambda > MAX_LAMBDA
+                    error("Exceeded maximum trust region radius")
+                end
+                # use the equivalence: diagm(J.'*J) = diagm(sum(J.^2, 1))
+                # delta_x = (J.'*J + diagm(lambda*sum(J.^2,1))) \ -(J.' * residual)
+                # we use an additional trick... since we only need the norm to compute 
+                # the above line, we can combine the vectors. i.e.:
+                delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [residual, zeros(size(x))]
+                # (see Ceres section 13, p. 55 and p. 58)
+                trial_x += delta_x
+                fcur = f(trial_x, fargs...)
+                residual = norm(fcur)
                 funEvals += 1
                 if funEvals > maxFunEvals
-                    print("Exceeded maximum number of function evaluations, exiting...")
-                    break
+                    error("Exceeded maximum number of function evaluations, exiting...")
                 end
             end
         end
         
         # find delta_x by solving the system:
-        # (J^T*J + lambda * diag(J^T*J)) * delta_x = J^T * fnorm
-        # also try diag(J^T*J) = sum(J.^2,1)
-        delta_x = (J.'*J + lambda*diag(J.'*J)) \ (J.' * fcur)
+        # (J^T*J + lambda * diagm(J^T*J)) * delta_x = -J^T * residual
+        # see notes above
+        delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [residual, zeros(size(x))]
         
         x += delta_x
-        prevNorm = fnorm
+        prevNorm = residual
         iterCt += 1
     end
 end
