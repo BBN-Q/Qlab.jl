@@ -20,14 +20,14 @@ function curve_fit(model::Function, xpts, ydata, p0)
 	return p, residuals, J
 end
 
-estimate_errors(p, residuals, J) = estimate_errors(p, residuals, J, .05)
+estimate_errors(p, residuals, J) = estimate_errors(p, residuals, J, .95)
 
 function estimate_errors(p, residuals, J, alpha)
 	# estimate_errors(p, residuals, J, alpha) computes (1-alpha) error estimates for the parameters from leastsq
 	#   p - parameters
 	#   residuals - vector of residuals
 	#   J - Jacobian
-	#   alpha - compute (1-alpha) percent confidence interval, (e.g. alpha=0.05 for 95% CI)
+	#   alpha - compute alpha percent confidence interval, (e.g. alpha=0.95 for 95% CI)
 
 	# mean square error is: standard square error / degrees of freedom
 	n, p = size(J)
@@ -43,7 +43,7 @@ function estimate_errors(p, residuals, J, alpha)
 
 	# scale by quantile of the student-t distribution
 	dist = TDist(n-p)
-	std_error *= quantile(dist, 1-alpha)
+	std_error *= quantile(dist, alpha)
 end
 
 function finite_difference(model)
