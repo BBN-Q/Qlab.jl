@@ -1,10 +1,12 @@
 module NonlinearFit
 
 require("Options")
+require("Distributions")
 using Base
 using OptionsMod
+using Distributions
 
-export curve_fit, leastsq
+export curve_fit, leastsq, estimate_errors
 
 function curve_fit(model::Function, xpts, ydata, p0)
 	# assumes model(xpts, params...) = ydata + noise
@@ -13,7 +15,35 @@ function curve_fit(model::Function, xpts, ydata, p0)
 	# construct the cost function
 	f(p, x) = model(x, p) - ydata
 
-	return leastsq(f, finite_difference(model), p0, (xpts,))
+	p, J = leastsq(f, finite_difference(model), p0, (xpts,))
+	residuals = model(xpts, p) - ydata
+	return p, residuals, J
+end
+
+estimate_errors(p, residuals, J) = estimate_errors(p, residuals, J, .05)
+
+function estimate_errors(p, residuals, J, alpha)
+	# estimate_errors(p, residuals, J, alpha) computes (1-alpha) error estimates for the parameters from leastsq
+	#   p - parameters
+	#   residuals - vector of residuals
+	#   J - Jacobian
+	#   alpha - compute (1-alpha) percent confidence interval, (e.g. alpha=0.05 for 95% CI)
+
+	# mean square error is: standard square error / degrees of freedom
+	n, p = size(J)
+	mse = sse(residuals)/(n-p)
+
+	# compute the covariance matrix from the QR decomposition
+	Q,R = qr(J)
+	Rinv = inv(R)
+	covar = Rinv*Rinv*mse
+
+	# then the standard errors are given by the sqrt of the diagonal
+	std_error = sqrt(diag(covar))
+
+	# scale by quantile of the student-t distribution
+	dist = TDist(n-p)
+	std_error *= quantile(dist, 1-alpha)
 end
 
 function finite_difference(model)
@@ -41,7 +71,8 @@ end
 leastsq(f::Function, g::Function, x0, fargs) = leastsq(f::Function, g::Function, x0, fargs, @options)
 
 function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
-	# finds min_x sum(f(x).^2) using the Levenberg-Marquardt algorithm
+	# finds argmin sum(f(x).^2) using the Levenberg-Marquardt algorithm
+	#          x
 	# The function f should take an input vector of length n and return an output vector of length m
 	# The function g is the Jacobian of f, and should be an m x n matrix
 	# x0 is an initial guess for the solution
@@ -51,6 +82,9 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 	#   tolG - search tolerance in gradient
 	#   maxIter - maximum number of iterations
 	#   lambda - (inverse of) initial trust region radius
+	# returns: x, J
+	#   x - least squares solution for x
+	#   J - estimate of the Jacobian of f at x
 	n = size(x0,1)
 	@defaults opts tolX=1e-8 tolG=1e-6 maxIter=100*n lambda=100.0
 
@@ -67,10 +101,10 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 
 	fcur = f(x, fargs...)
 	residual = sse(fcur)
-	println("Initial residual: $residual")
+	# println("Initial residual: $residual")
 
 	while ( iterCt < maxIter && norm(delta_x) > tolX*(tolX + norm(x)) )
-		println("x: $x")
+		# println("x: $x")
 		J = g(x, fargs...)
 		# we want to solve:
 		#    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||J^T*J*delta_x||^2
@@ -83,7 +117,7 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# in the resulting least-squares QR problem. This means also bringing sum(J.^2, 1) under the 
 		# square root. Then we have:
 		delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [-fcur, zeros(n)]
-		println("delta_x: $delta_x")
+		# println("delta_x: $delta_x")
 		# if the linear assumption is valid, our new residual should be:
 		predicted_residual = sse(J*delta_x + fcur)
 		# check for numerical problems in solving for delta_x by ensuring that the predicted residual is smaller
@@ -94,10 +128,10 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# try the step and compute its quality
 		trial_f = f(x + delta_x, fargs...)
 		trial_residual = sse(trial_f)
-		println("Trial residual: $trial_residual")
+		# println("Trial residual: $trial_residual")
 		# step quality = residual change / predicted residual change
 		rho = (trial_residual - residual) / (predicted_residual - residual)
-		println("Step quality rho: $rho")
+		# println("Step quality rho: $rho")
 
 		if rho > MIN_STEP_QUALITY
 			x += delta_x
