@@ -4,11 +4,38 @@ require("Options")
 using Base
 using OptionsMod
 
-export leastsq
+export curve_fit, leastsq
 
-function curve_fit(f::Function, xdata, ydata, p0...)
-	# assumes f(xdata, params...) = ydata + epsilon
+function curve_fit(model::Function, xpts, ydata, p0)
+	# assumes model(xpts, params...) = ydata + noise
 	# minimizes sum(ydata - f(xdata)).^2 using leastsq()
+
+	# construct the cost function
+	f(p, x) = model(x, p) - ydata
+
+	return leastsq(f, finite_difference(model), p0, (xpts,))
+end
+
+function finite_difference(model)
+	diff_step = eps()^(1/3)
+	# returns a function with signature g(p, x) that approximates the jacobian of model at p
+	function g(p, x)
+		J = zeros(length(x), length(p))
+		delta_p = zeros(size(p))
+		for j = 1:length(p)
+			# rescale size zero elements
+			if abs(p[j]) < eps()
+				delta_p[j] = sse(p) * diff_step
+			else
+				delta_p[j] = p[j] * diff_step
+			end
+			delta_f = model(x, p + delta_p) - model(x, p)
+			J[:, j] = delta_f / delta_p[j]
+			delta_p[j] = 0
+		end
+		J
+	end
+	g
 end
 
 leastsq(f::Function, g::Function, x0, fargs) = leastsq(f::Function, g::Function, x0, fargs, @options)
@@ -29,7 +56,7 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 
 	# other constants
 	const MAX_LAMBDA = 1e16 # maximum trust region radius
-	const MIN_LAMBDA = 1e-32 # minimum trust region radius
+	const MIN_LAMBDA = 1e-16 # minimum trust region radius
 	const MIN_STEP_QUALITY = 1e-3
 	# const MIN_DIAGONAL = 1e6 # lower bound on values of diagonal matrix used to regularize the trust region step
 	# const MAX_DIAGONAL = 1e32 # lower bound on values of diagonal matrix used to regularize the trust region step
@@ -53,8 +80,9 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# Solving for the minimum gives:
 		#    J^T * J_aug * delta_x == -J^T * f(x), where J_aug = [J, diagm(sqrt(lambda)*sum(J.^2,1))]
 		# Again, referring to the Ceres guide, p. 58, it looks like we can drop the J^T from both sides
-		# in the resulting least-squares QR problem. So, we have:
-		delta_x = [J, diagm(sqrt(lambda)*sum(J.^2,1))] \ [-fcur, zeros(n)]
+		# in the resulting least-squares QR problem. This means also bringing sum(J.^2, 1) under the 
+		# square root. Then we have:
+		delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [-fcur, zeros(n)]
 		println("delta_x: $delta_x")
 		# if the linear assumption is valid, our new residual should be:
 		predicted_residual = sse(J*delta_x + fcur)

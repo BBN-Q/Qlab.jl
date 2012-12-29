@@ -3,12 +3,12 @@ require("NonlinearFit")
 using NonlinearFit
 
 # produces the vector of differences between the model (p = [scale, tau]) and data
-function yfit(p, xpts, data)
+function yfit(p, xpts)
 	return p[1]*exp(-xpts.*p[2]) - data
 end
 
 # produces the N x 2 Jacobian (note: only depends on the model, not the data)
-function gfit(p, xpts, data)
+function gfit(p, xpts)
 	return [exp(-xpts.*p[2]) -xpts.*p[1].*exp(-xpts.*p[2])]
 end
 
@@ -17,6 +17,6 @@ xpts = linspace(0,10,20)
 data = exp(-xpts*2) + 0.01*randn(20)
 beta = [0.5, 0.5]
 
-beta, J = leastsq(yfit, gfit, beta, (xpts, data))
+beta, J = leastsq(yfit, gfit, beta, (xpts,))
 
 println("Found beta: $beta")
