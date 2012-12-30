@@ -92,8 +92,8 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 	const MAX_LAMBDA = 1e16 # maximum trust region radius
 	const MIN_LAMBDA = 1e-16 # minimum trust region radius
 	const MIN_STEP_QUALITY = 1e-3
-	# const MIN_DIAGONAL = 1e6 # lower bound on values of diagonal matrix used to regularize the trust region step
-	# const MAX_DIAGONAL = 1e32 # lower bound on values of diagonal matrix used to regularize the trust region step
+	# const MIN_DIAGONAL = 1e-6 # lower bound on values of diagonal matrix used to regularize the trust region step
+	# const MAX_DIAGONAL = 1e16 # upper bound on values of diagonal matrix used to regularize the trust region step
 
 	iterCt = 1
 	x = x0
@@ -107,15 +107,14 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# println("x: $x")
 		J = g(x, fargs...)
 		# we want to solve:
-		#    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||J^T*J*delta_x||^2
-		# We can combine the two terms by concatenating J^T*J onto the bottom of J,
+		#    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(sqrt(J'*J))*delta_x||^2
+		# We can combine the two terms by concatenating diagm(J'*J) onto the bottom of J,
 		# and padding f(x) with zeros (see Ceres Solver user guide, section 13, p. 55)
-		# Also use the equivalence: diagm(J.'*J) = diagm(sum(J.^2, 1))
+		# Also use the equivalence: diagm(J'*J) = diagm(sum(J.^2, 1))
 		# Solving for the minimum gives:
-		#    J^T * J_aug * delta_x == -J^T * f(x), where J_aug = [J, diagm(sqrt(lambda)*sum(J.^2,1))]
+		#    J^T * J_aug * delta_x == -J^T * f(x), where J_aug = [J, diagm(sqrt(lambda*sum(J.^2,1))]
 		# Again, referring to the Ceres guide, p. 58, it looks like we can drop the J^T from both sides
-		# in the resulting least-squares QR problem. This means also bringing sum(J.^2, 1) under the 
-		# square root. Then we have:
+		# in the resulting least-squares QR problem. Then we have:
 		delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [-fcur, zeros(n)]
 		# println("delta_x: $delta_x")
 		# if the linear assumption is valid, our new residual should be:
@@ -150,7 +149,7 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# 2. Small step size: norm(delta_x) < tolX
 		# 3. iterCt > maxIter
 		if norm(J' * fcur, Inf) < tolG
-			println("Stopping: small gradient.")
+			println("Stopping due to small gradient.")
 			break
 		end
 	end
