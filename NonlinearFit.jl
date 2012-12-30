@@ -86,7 +86,7 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 	#   x - least squares solution for x
 	#   J - estimate of the Jacobian of f at x
 	n = size(x0,1)
-	@defaults opts tolX=1e-8 tolG=1e-6 maxIter=100*n lambda=100.0
+	@defaults opts tolX=1e-8 tolG=1e-12 maxIter=100*n lambda=100.0
 
 	# other constants
 	const MAX_LAMBDA = 1e16 # maximum trust region radius
@@ -146,10 +146,10 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		iterCt += 1
 
 		# should check for the following stopping conditions:
-		# 1. Small gradient: norm(J^T * fcur) < tolG
+		# 1. Small gradient: norm(J^T * fcur, Inf) < tolG
 		# 2. Small step size: norm(delta_x) < tolX
 		# 3. iterCt > maxIter
-		if norm(J.' * fcur) < tolG
+		if norm(J' * fcur, Inf) < tolG
 			println("Stopping: small gradient.")
 			break
 		end
@@ -168,6 +168,6 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 
 end
 
-sse(x) = (x.'*x)[1]
+sse(x) = (x'*x)[1]
 
 end
