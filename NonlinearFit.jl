@@ -86,13 +86,13 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 	#   x - least squares solution for x
 	#   J - estimate of the Jacobian of f at x
 	n = size(x0,1)
-	@defaults opts tolX=1e-8 tolG=1e-12 maxIter=100*n lambda=100.0
+	@defaults opts tolX=1e-8 tolG=1e-12 maxIter=100*n lambda=100.0 show_trace=true
 
 	# other constants
 	const MAX_LAMBDA = 1e16 # maximum trust region radius
 	const MIN_LAMBDA = 1e-16 # minimum trust region radius
 	const MIN_STEP_QUALITY = 1e-3
-	# const MIN_DIAGONAL = 1e-6 # lower bound on values of diagonal matrix used to regularize the trust region step
+	const MIN_DIAGONAL = 1e-6 # lower bound on values of diagonal matrix used to regularize the trust region step
 	# const MAX_DIAGONAL = 1e16 # upper bound on values of diagonal matrix used to regularize the trust region step
 
 	iterCt = 1
@@ -101,22 +101,19 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 
 	fcur = f(x, fargs...)
 	residual = sse(fcur)
-	# println("Initial residual: $residual")
 
 	while ( iterCt < maxIter && norm(delta_x) > tolX*(tolX + norm(x)) )
 		# println("x: $x")
 		J = g(x, fargs...)
 		# we want to solve:
-		#    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(sqrt(J'*J))*delta_x||^2
-		# We can combine the two terms by concatenating diagm(J'*J) onto the bottom of J,
-		# and padding f(x) with zeros (see Ceres Solver user guide, section 13, p. 55)
-		# Also use the equivalence: diagm(J'*J) = diagm(sum(J.^2, 1))
+		#    argmin 0.5*||J(x)*delta_x + f(x)||^2 + lambda*||diagm(J'*J)*delta_x||^2
 		# Solving for the minimum gives:
-		#    J^T * J_aug * delta_x == -J^T * f(x), where J_aug = [J, diagm(sqrt(lambda*sum(J.^2,1))]
-		# Again, referring to the Ceres guide, p. 58, it looks like we can drop the J^T from both sides
-		# in the resulting least-squares QR problem. Then we have:
-		delta_x = [J, diagm(sqrt(lambda*sum(J.^2,1)))] \ [-fcur, zeros(n)]
-		# println("delta_x: $delta_x")
+		#    (J'*J + lambda*DtD) * delta_x == -J^T * f(x), where DtD = diagm(sum(J.^2,1))
+		# Where we have used the equivalence: diagm(J'*J) = diagm(sum(J.^2, 1))
+		# It is additionally useful to bound the elements of DtD below to help
+		# prevent "parameter evaporation".
+		DtD = convert(Array{Float64,2}, diagm([max(x, MIN_DIAGONAL) for x in sum(J.^2,1)]))
+		delta_x = ( J'*J + sqrt(lambda)*DtD ) \ -J'*fcur
 		# if the linear assumption is valid, our new residual should be:
 		predicted_residual = sse(J*delta_x + fcur)
 		# check for numerical problems in solving for delta_x by ensuring that the predicted residual is smaller
@@ -127,10 +124,8 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# try the step and compute its quality
 		trial_f = f(x + delta_x, fargs...)
 		trial_residual = sse(trial_f)
-		# println("Trial residual: $trial_residual")
 		# step quality = residual change / predicted residual change
 		rho = (trial_residual - residual) / (predicted_residual - residual)
-		# println("Step quality rho: $rho")
 
 		if rho > MIN_STEP_QUALITY
 			x += delta_x
@@ -149,8 +144,18 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 		# 2. Small step size: norm(delta_x) < tolX
 		# 3. iterCt > maxIter
 		if norm(J' * fcur, Inf) < tolG
-			println("Stopping due to small gradient.")
+			println("Converged: gradient smaller than tolerance.")
 			break
+		end
+
+		# show state
+		if show_trace
+			println("Iteration: $(iterCt)")
+		    println("x: $(x)")
+		    println("||f(x)||^2: $(sse(fcur))")
+		    println("g(x): $(J'*fcur)")
+			println("lambda: $(lambda)")
+		    println()
 		end
 	end
 
@@ -158,7 +163,7 @@ function leastsq(f::Function, g::Function, x0, fargs, opts::Options)
 	if iterCt >= maxIter
 		println("Exceeded maximum number of iterations")
 	elseif norm(delta_x) <= tolX * (tolX + norm(x))
-		println("Step size too small.")
+		println("Converged: Step size smaller than tolerance.")
 	end
 
 	J = g(x, fargs...)
