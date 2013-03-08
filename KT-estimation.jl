@@ -22,7 +22,7 @@ function KT_estimation(data, timeStep, order)
 	K = order
 	M = itrunc(N/2)-1
 	L = N-M+1
-	H = zeros(L,M)
+	H = zeros(Complex128, L, M)
 	for ct = 1:M
 	    H[:,ct] = analyticSig[ct:ct+L-1]
 	end
@@ -39,7 +39,7 @@ function KT_estimation(data, timeStep, order)
 	Hbar = U[:,1:K] * Sfilt * V[:,1:K]'
 
 	#Reconstruct the data from the averaged anti-diagonals
-	cleanedData = zeros(N)
+	cleanedData = zeros(Complex128, N)
 	tmpMat = fliplr(Hbar)
 	idx = -L+1
 	for ct = N:-1:1
@@ -48,18 +48,18 @@ function KT_estimation(data, timeStep, order)
 	end
 
 	#Create a cleaned Hankel matrix
-	#(BRJ note: this is the same as lines 26-28. Do we want to construct a cleaned analytic signal first?)
-	cleanedH = zeros(L,M)
+	cleanedH = similar(H)
+	cleanedAnalyticSig = hilbert(cleanedData)
 	for ct = 1:M
-	    cleanedH[:,ct] = analyticSig[ct:ct+L-1]
+	    cleanedH[:,ct] = cleanedAnalyticSig[ct:ct+L-1]
 	end
 
 	#Compute Q with total least squares
 	#U_K1*Q = U_K2
-	U,_,_ = svd(cleanedH)
+	U = svd(cleanedH)[1]
 	U_K = U[:,1:K]
 	tmpMat = [U_K[1:end-1,:] U_K[2:end,:]]
-	_,_,V = svd(tmpMat)
+	V = svd(tmpMat)[3]
 	n = size(U_K,2)
 	V_AB = V[1:n,1+n:end]
 	V_BB = V[1+n:end,1+n:end]
@@ -78,7 +78,7 @@ function KT_estimation(data, timeStep, order)
 	end
 
 	#Refit the data to get the amplitude
-	A = zeros(N,K)
+	A = zeros(Complex128, N, K)
 	for ct = 1:K
 	    A[:,ct] = poles[ct].^(0:N-1)
 	end
