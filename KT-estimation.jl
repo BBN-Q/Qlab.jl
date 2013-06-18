@@ -2,8 +2,16 @@ function hilbert(signal)
 	# construct the Hilbert transform of the signal via the FFT
 	# in essense, we just want to set negative frequency components to zero
 	spectrum = fft(signal)
-	spectrum[end/2+1:end] = 0
-	ifft(2*spectrum)
+	n = length(signal)
+	midpoint = ceil(n/2)
+
+	kernel = zeros(n)
+	kernel[1] = 1
+	if iseven(n)
+		kernel[midpoint + 1] = 1
+	end
+	kernel[2:midpoint] = 2
+	ifft(kernel .* spectrum)
 end
 
 function KT_estimation(data, timeStep, order)
@@ -44,7 +52,7 @@ function KT_estimation(data, timeStep, order)
 	idx = -L+1
 	for ct = N:-1:1
 	    cleanedData[ct] = mean(diag(tmpMat,idx))
-	    idx = idx+1
+	    idx += 1
 	end
 
 	#Create a cleaned Hankel matrix
@@ -66,7 +74,7 @@ function KT_estimation(data, timeStep, order)
 	Q = -V_AB/V_BB
 
 	#Now poles are eigenvalues of Q
-	poles = eig(Q, false)
+	poles, _ = eig(Q)
 
 	#Take the log and return the decay constant and frequency
 	freqs = zeros(K)
