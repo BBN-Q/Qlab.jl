@@ -16,6 +16,7 @@ function read_file(fileName::String)
 	#Infer the number or records from the file size
 	numRecords = ifloor((fileSize-3*sizeof(Int32))/prod(sizes)/sizeof(Float32))
 
-	return mmap_array(Float32, tuple([sizes, numRecords]...), FID)
-
+	a = mmap_array(Float32, tuple([sizes, numRecords]...), FID)
+	close(FID)
+	return a
 end
