@@ -1,23 +1,21 @@
-function read_records(fileName::String)
+function read_records(baseName::String)
 	#Helper function to read back in saved records
 
-	return open(read_file, string(fileName, ".real")) + 1im*open(read_file, string(fileName, ".imag"))
+	return read_file(string(baseName, ".real")) + 1im*read_file(string(baseName, ".imag"))
 end
 
-function read_file(FID::IOStream)
-	sizes = read(FID, Int32, 3)
-	out = memio()
-	ct = 0
-	while !eof(FID)
-		a = read(FID, Float32)
-        write(out, a)
-        ct += 1
-    end
-    seekstart(out)
-    data = read(out, Float32, ct)
+function read_file(fileName::String)
 
-	bufferSize = prod(sizes)
-	lastDim = fld(length(data), bufferSize)
-	data = reshape(data, [int64(sizes), lastDim]...)
-	return data
+	#Get the size of the file and open
+	fileSize = filesize(fileName)
+	FID = open(fileName, "r")
+
+	#Read out the first three dimensions (recordLength x numWaveforms x numSegments)
+	sizes = read(FID, Int32, 3)
+
+	#Infer the number or records from the file size
+	numRecords = int64((fileSize-13*sizeof(Int32))/prod(sizes)/sizeof(Float32))
+
+	return mmap_array(Float32, tuple([int64(sizes), numRecords]...), FID)
+
 end
