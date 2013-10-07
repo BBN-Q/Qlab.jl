@@ -7,7 +7,7 @@ function load_data(filename)
 		version = read(attrs(f)["version"])[1]
 		@assert version == 2
 
-		header = parse(read(f["header"])[1])
+		header = eval(parse(replace(read(f["header"])[1], ":", "=>")))
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
 		data = cell(nbrDataSets)
 
