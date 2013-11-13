@@ -1,4 +1,4 @@
-Julia-Tools
+Qlab.jl
 ==========
 
-Generically usual tools and macros for Julia code.
+Data manipulation and analysis tools.
