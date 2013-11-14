@@ -8,12 +8,11 @@ function load_data(filename)
 		@assert version == 2
 
 		#Some headers are malformed...
-		header = None #try-catch blocks create their own scope
-		try
-			header = JSON.parse(read(f["header"])[1])
+		header = try
+			JSON.parse(read(f["header"])[1])
 		catch
-			header = None
-			warn("Unable to parse header JSON structure");
+			warn("Unable to parse header JSON structure")
+			Dict()
 		end
 
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
