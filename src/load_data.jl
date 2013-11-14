@@ -7,7 +7,15 @@ function load_data(filename)
 		version = read(attrs(f)["version"])[1]
 		@assert version == 2
 
-		header = JSON.parse(read(f["header"])[1])
+		#Some headers are malformed...
+		header = None #try-catch blocks create their own scope
+		try
+			header = JSON.parse(read(f["header"])[1])
+		catch
+			header = None
+			warn("Unable to parse header JSON structure");
+		end
+
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
 		data = cell(nbrDataSets)
 
@@ -31,7 +39,7 @@ function load_data(filename)
 			data = data[1]
 		end
 
-		header, data
+		return header, data
 	end
 
 end
