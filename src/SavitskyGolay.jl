@@ -28,7 +28,7 @@ filterCoeffs = G[:,deriv+1] * factorial(deriv);
 
 #Pad the signal with the endpoints and convolve with filter 
 paddedX = [x[1]*ones(halfWindow), x, x[end]*ones(halfWindow)]
-y = conv(filterCoeffs, paddedX)
+y = conv(filterCoeffs[end:-1:1], paddedX)
 
 #Return the valid midsection
 return y[2*halfWindow+1:end-2*halfWindow]
