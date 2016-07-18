@@ -16,11 +16,11 @@ function load_data(filename)
 		end
 
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
-		data = cell(nbrDataSets)
+		data = Array{Any}(nbrDataSets)
 
 		for ct in 1:nbrDataSets
 			raw_data = read(f["DataSet$(ct)/real"]) + im*read(f["DataSet$(ct)/imag"])
-			data[ct] = @compat Dict("data" => raw_data)
+			data[ct] = @compat Dict{String,Any}("data" => raw_data)
 			data[ct]["xpoints"] = read(f["DataSet$(ct)/xpoints"])
 			data[ct]["xlabel"] = read(attrs(f["DataSet$(ct)/xpoints"])["label"])
 			if ndims(raw_data) > 1
