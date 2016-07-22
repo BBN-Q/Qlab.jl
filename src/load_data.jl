@@ -1,6 +1,11 @@
-using HDF5, JSON
-
-function load_data(filename)
+function load_data(datapath, filenum = NaN)
+    if ~isnan(filenum)
+		#optionally, search for filenum instead of filename
+        searchdir(path, fileid) = filter(x->contains(x,string(filenum))&&contains(x,".h5"), readdir(path))
+        filename = joinpath(datapath,searchdir(datapath, filenum)[1])
+	else
+		filename = datapath
+	end
 
 	h5open(filename, "r") do f
 
