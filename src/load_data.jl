@@ -1,9 +1,9 @@
 function load_data(datapath, filenum = NaN, subdir = Dates.format(Dates.today(),"yymmdd"))
-    if ~isnan(filenum)
+	if ~isnan(filenum)
 		#optionally, search for filenum instead of filename
 		#search in a subdirectory with today's date, if not specified
-        searchdir(path, fileid) = filter(x->contains(x,string(filenum))&&contains(x,".h5"), readdir(path))
-        filename = joinpath(datapath, subdir, searchdir(datapath, filenum)[1])
+		searchdir(path, fileid) = filter(x->contains(x,string(filenum))&&contains(x,".h5"), readdir(path))
+		filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
 	else
 		filename = datapath
 	end
