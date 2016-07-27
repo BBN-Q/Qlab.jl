@@ -20,7 +20,12 @@ function load_data(filename)
 
 		for ct in 1:nbrDataSets
 			raw_data = read(f["DataSet$(ct)/real"]) + im*read(f["DataSet$(ct)/imag"])
-			data[ct] = @compat Dict{String,Any}("data" => raw_data)
+			data[ct] = @compat Dict{AbstractString,Any}("data" => raw_data)
+			if has(f, "DataSet$(ct)/realvar")
+				data[ct]["realvar"] = read(f["DataSet$(ct)/realvar"])
+				data[ct]["imagvar"] = read(f["DataSet$(ct)/imagvar"])
+				data[ct]["prodvar"] = read(f["DataSet$(ct)/prodvar"])
+			end
 			data[ct]["xpoints"] = read(f["DataSet$(ct)/xpoints"])
 			data[ct]["xlabel"] = read(attrs(f["DataSet$(ct)/xpoints"])["label"])
 			if ndims(raw_data) > 1
