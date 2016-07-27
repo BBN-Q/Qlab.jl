@@ -1,3 +1,5 @@
+using HDF5, JSON
+
 function load_data(datapath, filenum = NaN, subdir = Dates.format(Dates.today(),"yymmdd"))
 	if ~isnan(filenum)
 		#optionally, search for filenum instead of filename
