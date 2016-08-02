@@ -1,6 +1,6 @@
 using HDF5, JSON
 
-function load_data(filename)
+function load_data(filename::AbstractString)
 
 	h5open(filename, "r") do f
 
@@ -46,4 +46,12 @@ function load_data(filename)
 		return header, data
 	end
 
+end
+
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
+		# optionally, search for filenum instead of filename
+		# search in a subdirectory with today's date, if not specified
+		searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
+		filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
+		load_data(filename)
 end
