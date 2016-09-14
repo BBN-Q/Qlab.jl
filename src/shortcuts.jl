@@ -1,8 +1,17 @@
 using HDF5, Compat, KernelDensity
 
 function cal_data(data; caltype="test", num_repeats = 2)
-  zeroCal = mean(data[end-2*num_repeats+1:end-num_repeats]);
-  piCal = mean(data[end-num_repeats+1:end]);
+
+  if caltype == "a"
+    zeroCal = (mean(data[end-2*num_repeats+1:4:end])+mean(data[end-2*num_repeats+2:4:end]))/2;
+    piCal = (mean(data[end-2*num_repeats+3:4:end])+mean(data[end-2*num_repeats+4:4:end]))/2;
+  elseif caltype == "b"
+    zeroCal = mean(data[end-2*num_repeats+1:end-num_repeats]);
+    piCal = mean(data[end-num_repeats+1:end]);
+  else
+    zeroCal = mean(data[end-2*num_repeats+1:end-num_repeats]);
+    piCal = mean(data[end-num_repeats+1:end]);
+  end
 
   scaleFactor = -(piCal - zeroCal)/2;
   data = data[1:end-2*num_repeats];
@@ -49,32 +58,32 @@ function get_extr_loc(M, dim, getmax = true)
 end
 
 function reshape_cells(data)
-measnum=length(data);
-cellsize=size(data[1]["data"])
-repeatnum =cellsize[1];
-alldata = Dict()
-for k=1:measnum
-        alldata[k]=zeros(1,0);
-    for r=1:repeatnum
-            tempdata = data[k]["data"]
-            alldata[k]=hcat(alldata[k], tempdata[r,:]);
-    end
-end
-return alldata
+  measnum=length(data);
+  cellsize=size(data[1]["data"])
+  repeatnum =cellsize[1];
+  alldata = Dict()
+  for k=1:measnum
+          alldata[k]=zeros(1,0);
+      for r=1:repeatnum
+              tempdata = data[k]["data"]
+              alldata[k]=hcat(alldata[k], tempdata[r,:]);
+      end
+  end
+  return alldata
 end
 
 function get_max_loc(M, dim)
-#return index and value of max in each column (1)/row (2)
-_, aindx = findmax(M, dim);
+  #return index and value of max in each column (1)/row (2)
+  _, aindx = findmax(M, dim);
 
-msize=size(M);
-    col = zeros(msize[-dim+3], 1);
-    for i=1:msize[-dim+3]
-        if dim == 1
-            col[i], _ = ind2sub(msize, aindx[i])
-        elseif dim == 2
-            _, col[i] = ind2sub(msize, aindx[i])
-        end
+  msize=size(M);
+  col = zeros(msize[-dim+3], 1);
+  for i=1:msize[-dim+3]
+    if dim == 1
+      col[i], _ = ind2sub(msize, aindx[i])
+    elseif dim == 2
+      _, col[i] = ind2sub(msize, aindx[i])
     end
-    return convert(Array{Int8,2}, col), M[aindx]
+  end
+  return convert(Array{Int8,2}, col), M[aindx]
 end

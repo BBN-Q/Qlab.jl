@@ -38,7 +38,7 @@ function plot2D(data, quad = 'real'; normalize=false)
     data = abs(data["data"])
   end
   if normalize
-    data/=data[:,1]
+    data./=data[:,1]
   end
   xpoints = repmat(data["xpoints"],1,length(data["ypoints"]))
   ypoints = repmat(data["ypoints"]',length(data["xpoints"]),1)
@@ -49,6 +49,5 @@ function plot2D(data, quad = 'real'; normalize=false)
   xlim([minimum(xpoints),maximum(xpoints)])
   ylim([minimum(ypoints),maximum(ypoints)])
   @printf("Max fid. = %.3f\n", maximum(data_re))
-  @printf("Readout freq. = 6.3632 GHz")
   title("Cavity frequency vs readout power")
 end
