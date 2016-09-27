@@ -87,3 +87,30 @@ function get_max_loc(M, dim)
   end
   return convert(Array{Int8,2}, col), M[aindx]
 end
+
+function get3pops(data)
+#get transmon populations after an experiment lternating Id, Pi_01, Pi_12 as tomography pulses
+  calRepeat = 2;
+  pvec3 = zeros(3,Int((length(data)-3*calRepeat)/3));
+  pvec2 = zeros(3,Int((length(data)-3*calRepeat)/3));
+  pvec2temp = zeros(2,Int((length(data)-3*calRepeat)/3));
+  v0 = mean(data[end-3*calRepeat+1:end-2*calRepeat]);
+  v1 = mean(data[end-2*calRepeat+1:end-calRepeat]);
+  v2 = mean(data[end-calRepeat+1:end]);
+  m0 = data[1:3:end]
+  m1 = data[2:3:end]
+  m2 = data[3:3:end]
+
+  M = [v0 v1 v2; v1 v0 v2; v0 v2 v1];
+  for c = 1:Int((length(data)-3*calRepeat)/3)
+    pvec3[:,c] = M\[m0[c];m1[c];m2[c]]
+  end
+
+  #fixed p0+p1+p2 = 1
+  M2 = [v0-v2 v1-v2; v1-v2 v0-v2];
+  for c = 1:Int((length(data)-3*calRepeat)/3)
+    pvec2temp[:,c] = M2\[m0[c]-v2;m1[c]-v2];
+  end
+  pvec2 = [pvec2temp; 1-sum(pvec2temp,1)];
+  return (pvec3, pvec2)
+end
