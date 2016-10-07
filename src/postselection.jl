@@ -1,13 +1,19 @@
+"""
+    initByMsmt(data, numSegments, numMeas, indMeas, selectMeas, selectSign, threshold, docond)
+
+Condition data on measurement results on the same channel
+
+numSegments = number of distinct segments in the sequence
+numMeas = number of meauserements per segments
+indMeas = list of indeces of the msmt's to compare for fidelity
+selectMeas = indeces of msms't to postselect on. All the msm'ts in a
+segment will be postselected on this one
+selectSign = select the sign for postselection. 1 = keep greater than;
+-1 = keep smaller than
+threshold
+docond. If 1, do postselection
+"""
 function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,threshold,docond)
-  #numSegments = number of distinct segments in the sequence
-  #numMeas = number of meauserements per segments
-  #indMeas = list of indeces of the msmt's to compare for fidelity
-  #selectMeas = indeces of msms't to postselect on. All the msm'ts in a
-  #segment will be postselected on this one
-  #selectSign = select the sign for postselection. 1 = keep greater than;
-  #-1 = keep smaller than
-  #threshold
-  #docond. If 1, do postselection
 
   ind0=indMeas[1,:]
   ind1=indMeas[2,:]
@@ -95,6 +101,22 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
   return bins, PDFvec, PDFvec_con,data_con,opt_thr,datamat, fidvec_un, err0, err1
 end
 
+"""
+    initByMsmt2D(data, Anum, numSegments, numMeas_A, indMeas, selectMeas, selectSign, docond, numCal; threshold=NaN)
+
+Condition data on measurement results on a different channel
+
+Anum = index of ancilla measurement channel
+numSegments = number of distinct segments in the sequence
+numMeas_A = number of ancilla measurements per segments (including those to be conditioned on)
+indMeas = list of indeces of the msmt's to compare for fidelity
+selectMeas = indeces of msms't to postselect on. All the msm'ts in a segment will be postselected on this one
+selectSign = select the sign for postselection. 1 = keep greater than; -1 = keep smaller than
+docond. If 1, do postselection
+numCal = number of calibration sequences. Currently, it assumes that they only have 1
+measurement per qubit.
+threshold. If not specified, uses the optimum to maximize fidelity
+"""
 function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,selectSign,docond,numCal;threshold=NaN)
   #data = data qubits
   #data = single ancilla qubit. Data to be postselected on

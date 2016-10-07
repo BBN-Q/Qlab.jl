@@ -26,28 +26,26 @@ function plot_ss_hists(shots_0, shots_1)
 end
 
 
-function plot2D(data, quad = 'real'; normalize=false)
+function plot2D(data, quad = "real"; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
   ax = gca()
   ax[:ticklabel_format](useOffset=false)
-  if quad == 'real'
-    data = real(data["data"])
-  elseif quad == 'imag'
-    data = imag(data["data"])
-  elseif quad == 'amp'
-    data = abs(data["data"])
+  if quad == "real"
+    data_quad = real(data["data"])
+  elseif quad == "imag"
+    data_quad = imag(data["data"])
+  elseif quad == "amp"
+    data_quad = abs(data["data"])
   end
   if normalize
-    data./=data[:,1]
+    data_quad./=data_quad[:,1]
   end
   xpoints = repmat(data["xpoints"],1,length(data["ypoints"]))
   ypoints = repmat(data["ypoints"]',length(data["xpoints"]),1)
-  pcolormesh(xpoints, ypoints, data',cmap = "terrain")
+  pcolormesh(xpoints, ypoints, data_quad',cmap = "terrain")
   colorbar()
   xlabel(data["xlabel"])
   ylabel(data["ylabel"])
   xlim([minimum(xpoints),maximum(xpoints)])
   ylim([minimum(ypoints),maximum(ypoints)])
-  @printf("Max fid. = %.3f\n", maximum(data_re))
-  title("Cavity frequency vs readout power")
 end
