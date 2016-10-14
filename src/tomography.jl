@@ -1,4 +1,4 @@
-using SCS, QuantumInfo, Convex, Clifford
+using SCS, QuantumInfo, Convex, Cliffords
 
 function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 1)
   #tomo_gate_set Returns a set of state preparation or readout unitary gates.
