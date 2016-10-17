@@ -1,3 +1,4 @@
+using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
   #single-shot readout histograms
@@ -48,4 +49,43 @@ function plot2D(data, quad = "real"; normalize=false)
   ylabel(data["ylabel"])
   xlim([minimum(xpoints),maximum(xpoints)])
   ylim([minimum(ypoints),maximum(ypoints)])
+end
+
+function lblbf()
+  xlabel("Frequency (GHz)")
+end
+
+function lbllf()
+  ylabel("Frequency (GHz)")
+end
+
+function lblbp()
+  xlabel("Power (dBm)")
+end
+
+function lbllp()
+  ylabel("Power (dBm)")
+end
+
+function lblbt()
+  xlabel("Time (ns)")
+end
+
+function lbllt()
+  ylabel("Time (ns)")
+end
+
+function lbllz()
+  ylabel(L"\langle Z \rangle")
+end
+
+function annotate_plot(message, vals...; coords = [0.75, 0.9])
+  annotate(format(message, vals...),
+    xy= coords,
+    xycoords="axes fraction",
+    xytext=[10,15],
+    textcoords="offset points",
+    fontsize=10.0,
+ha="left",
+va="center")
 end

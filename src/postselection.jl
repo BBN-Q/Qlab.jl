@@ -228,7 +228,7 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
       datamat[nn] = dataslice
 
     end
-    frac = sum(sum(~isnanr(dataslice[:,1:end-numCal])))/(size(dataslice,1)*(size(dataslice,2)-numCal))
+    frac = sum(sum(~isnan(dataslice[:,1:end-numCal])))/(size(dataslice,1)*(size(dataslice,2)-numCal))
     @printf("Fraction kept = %.2f\n", frac)
   end
 
@@ -255,4 +255,12 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
   end
 
   return (bins,PDFvec,data_con,var_con,opt_thr,datamat, fidvec_un, err0, err1)
+end
+
+function splitdata(data, numseg, numsets)
+  datamat = zeros(numseg, numsets);
+  for kk=1:numsets
+    datamat[:,kk] = data[kk:numsets:end];
+  end
+  return datamat
 end

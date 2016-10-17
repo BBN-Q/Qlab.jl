@@ -10,6 +10,16 @@ function fit_t1(xpts, ypts)
   return result.param[2:3], errors[2:3], fit_curve
 end
 
+function fit_line(xpts, ypts)
+	model(t, p) = p[1]*t + p[2]
+	p_guess = [-ypts[indmin(abs(xpts))]/xpts[indmin(abs(ypts))], ypts[indmin(abs(xpts))]]
+	result = curve_fit(model, xpts, ypts, p_guess)
+	errors = estimate_errors(result)
+	xfine = linspace(xpts[1],xpts[end],1001)
+  fit_curve = (xfine, model(xfine, result.param))
+  return result.param, errors, fit_curve
+end
+
 function fit_ramsey(xpts, ypts)
 	model(t, p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t) + p[4]
 
@@ -22,6 +32,20 @@ function fit_ramsey(xpts, ypts)
 	result = curve_fit(model, xpts, ypts, p_guess)
 	errors = estimate_errors(result)
 	return result.param[2:3], errors[2:3]
+end
+
+function fit_sin(xpts, ypts)
+	model(t, p) = p[1]*sin(2π*p[2] .* t) + p[3]
+
+	# Use KT estimation to get a guess for the fit
+	freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
+	idx = indmax(abs(amps))
+
+	p_guess = [amps[idx], Ts[idx], freqs[idx], mean(ypts)];
+
+	result = curve_fit(model, xpts, ypts, p_guess)
+	errors = estimate_errors(result)
+	return result.param, errors
 end
 
 #Fit function in McClure et al., Phys. Rev. App. 2016 (see below for details)
