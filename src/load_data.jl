@@ -1,5 +1,10 @@
-using HDF5, JSON
+using HDF5, JSON, Compat
 
+"""
+    load_data(filename)
+
+Load hdf header and data
+"""
 function load_data(filename::AbstractString)
 
 	h5open(filename, "r") do f
@@ -48,6 +53,11 @@ function load_data(filename::AbstractString)
 
 end
 
+"""
+    load_data(datapath, filenum; subdir)
+
+Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
+"""
 function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
 		# optionally, search for filenum instead of filename
 		# search in a subdirectory with today's date, if not specified
