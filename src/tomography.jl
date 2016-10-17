@@ -1,65 +1,60 @@
-using SCS, QuantumInfo, Convex, Clifford
+using SCS, QuantumInfo, Convex, Cliffords
 
+"""
+    tomo_gate_set(nbrQubits, nbrPulses; pulse_type, prep_meas)
+
+Return a set of state preparation or readout unitary gates.
+pulse_type: prepared states/meas. axes
+prep_meas: 1 for prep., 2 for meas. pulses
+"""
 function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 1)
-  #tomo_gate_set Returns a set of state preparation or readout unitary gates.
-
-  #pulse_type: prepared states/meas. axes
-  #prep_meas: 1 for prep., 2 for meas. pulses
-
+  id, sx, sy, sz = Matrix[complex(allpaulis(1)[i]) for i in 1:4]
+  gateSet = Dict()
+  Uset1Q = Dict{Int, Matrix{Complex128}}()
   if nbrPulses==4
     #Four pulse set
     if pulse_type == "Clifford"
-      Uset1Q = [
-      Id,
-      expm(-1im*(pi/4)*X),
-      expm(-1im*(pi/4)*Y),
-      expm(-1im*(pi/2)*X)
-      ]
+      Uset1Q[1] = id
+      Uset1Q[2] = expm(-1im*(pi/4)*sx)
+      Uset1Q[3] = expm(-1im*(pi/4)*sy)
+      Uset1Q[4] = expm(-1im*(pi/2)*sx)
     elseif pulse_type == "Tetra"
       if prep_meas==1
-        Uset1Q = [
-        Id,
-        expm(-1im*acos(-1/3)*X),
-        expm(-1im*2*pi/3*Z)*expm(-1im*acos(-1/3)*X),
-        expm(1im*2*pi/3*Z)*expm(-1im*acos(-1/3)*X)
-        ]
+        Uset1Q[1] = id
+        Uset1Q[2] = expm(-1im*acos(-1/3)*sx)
+        Uset1Q[3] = expm(-1im*2*pi/3*sz)*expm(-1im*acos(-1/3)*sx)
+        Uset1Q[4] = expm(1im*2*pi/3*sz)*expm(-1im*acos(-1/3)*sx)
       else
-        Uset1Q = [
-        Id,
-        expm(1im*acos(-1/3)*X),
-        expm(1im*acos(-1/3)*X)*expm(1im*2*pi/3*Z),
-        expm(1im*acos(-1/3)*X)*expm(-1im*2*pi/3*Z)
-        ]
+        Uset1Q[1] = id
+        Uset1Q[2] = expm(1im*acos(-1/3)*sx)
+        Uset1Q[3] = expm(1im*acos(-1/3)*sx)*expm(1im*2*pi/3*sz)
+        Uset1Q[4] = expm(1im*acos(-1/3)*sx)*expm(-1im*2*pi/3*sz)
       end
     else
       error("Invalid prep./meas. pulse pulse_type")
     end
   elseif nbrPulses==6
     #Six pulse set
-    Uset1Q = [
-    Id,
-    expm(-1im*(pi/4)*X),
-    Uset1Q[3]=expm(1im*(pi/4)*X),
-    Uset1Q[4]=expm(-1im*(pi/4)*Y),
-    Uset1Q[5]=expm(1im*(pi/4)*Y),
-    Uset1Q[6]=expm(-1im*(pi/2)*X),
-    ]
+    Uset1Q[1] = id
+    Uset1Q[2] = expm(-1im*(pi/4)*sx)
+    Uset1Q[3] = expm(1im*(pi/4)*sx)
+    Uset1Q[4] = expm(-1im*(pi/4)*sy)
+    Uset1Q[5] = expm(1im*(pi/4)*sy)
+    Uset1Q[6] = expm(-1im*(pi/2)*sx)
   elseif nbrPulses==12
     #12 pulse set
-    Uset1Q = [
-    Id,
-    expm(-1im*(pi/2)*X),
-    expm(-1im*(pi/2)*Y),
-    expm(-1im*(pi/2)*Z),
-    expm(-1im*(pi/3)*(1/sqrt(3))*(X+Y-Z)),  #X+Y-Z 120
-    expm(-1im*(pi/3)*(1/sqrt(3))*(X-Y+Z)),  #X-Y+Z 120
-    expm(-1im*(pi/3)*(1/sqrt(3))*(-X+Y+Z)),  #-X+Y+Z 120
-    expm(-1im*(pi/3)*(1/sqrt(3))*(-X-Y-Z)),  #X+Y+Z -120 (equivalent to -X-Y-Z 120)
-    expm(-1im*(pi/3)*(1/sqrt(3))*(X+Y+Z)),   #X+Y+Z 120
-    expm(-1im*(pi/3)*(1/sqrt(3))*(-X+Y-Z)),  #X-Y+Z -120 (equivalent to -X+Y-Z 120)
-    expm(-1im*(pi/3)*(1/sqrt(3))*(X-Y-Z)),  #-X+Y+Z -120 (equivalent to X-Y-Z 120
-    expm(-1im*(pi/3)*(1/sqrt(3))*(-X-Y+Z))  #X+Y-Z -120 (equivalent to -X-Y+Z 120
-    ]
+    Uset1Q[1] = id
+    Uset1Q[1] = expm(-1im*(pi/2)*sx)
+    Uset1Q[1] = expm(-1im*(pi/2)*sy)
+    Uset1Q[1] = expm(-1im*(pi/2)*sz)
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(sx+sy-sz))  #sx+sy-sz 120
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(sx-sy+sz))  #sx-sy+sz 120
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(-sx+sy+sz))  #-sx+sy+sz 120
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(-sx-sy-sz))  #sx+sy+sz -120 (equivalent to -sx-sy-sz 120)
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(sx+sy+sz))   #sx+sy+sz 120
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(-sx+sy-sz))  #sx-sy+sz -120 (equivalent to -sx+sy-sz 120)
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(sx-sy-sz))  #-sx+sy+sz -120 (equivalent to sx-sy-sz 120
+    Uset1Q[1] = expm(-1im*(pi/3)*(1/sqrt(3))*(-sx-sy+sz))  #sx+sy-sz -120 (equivalent to -sx-sy+sz 120
   else
     error("Invalid number of pulses");
 end
@@ -69,12 +64,14 @@ end
 numGates = nbrPulses^nbrQubits;
 kronMat = zeros(UInt8, numGates, nbrQubits);
 for qubitct = 1:nbrQubits
-        kronMat[:,qubitct] = reshape(repmat(transpose(1:nbrPulses), nbrPulses^(nbrQubits-qubitct), nbrPulses^(qubitct-1)), numGates, 1);
+  kronMat[:,qubitct] = reshape(repmat(transpose(1:nbrPulses), nbrPulses^(nbrQubits-qubitct), nbrPulses^(qubitct-1)), numGates, 1);
 end
 
 for gatect = 1:numGates
   gateSet[gatect] = 1;
-  gateSet[gatect] = foldl(kron, Uset1Q[kronMat[gatect, :]])
+  for qubitct = 1:nbrQubits
+    gateSet[gatect] = kron(gateSet[gatect], Uset1Q[kronMat[gatect, qubitct]]);
+  end
 end
     return gateSet
 end
@@ -103,7 +100,6 @@ for expct = 1:length(expResults)
         tmp = transpose(measPulseUs[Int(measPulseMap[Int(expct)])]'*measOps[Int(measOpMap[Int(expct)])]*measPulseUs[Int(measPulseMap[Int(expct)])]);
         predictorMat[expct,:] = tmp[:];
 end
-println("Done!\n")
     invVarMat = inv(varMat);
     A = predictorMat'*invVarMat*predictorMat
     B = predictorMat'*invVarMat*expResults
@@ -128,14 +124,10 @@ function QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
 #the effective measurement operators and then flatten into row of the
 #predictor matrix
 
-@printf("Setting up predictor matrix....");
  predictorMat = complex(zeros(length(expResults), 4^n));for expct = 1:length(expResults)
   tmp = transpose(measPulseUs[Int(measPulseMap[Int(expct)])]'*measOps[Int(measOpMap[Int(expct)])]*measPulseUs[Int(measPulseMap[Int(expct)])]);
      predictorMat[expct,:] = tmp[:];
 end
-println("Done!\n.")
-
-println("SDP optimizing...")
 
 solver = SCSSolver(verbose=0, max_iters=10_000, eps = 1e-8)
 
@@ -161,14 +153,14 @@ end
 
 function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
 
-  numMeas = length(data);
-  measOps = Dict();
-  tomoData = Array(Float64[]);
-  varData = Array(Float64[]);
-  if haskey(data, "data")
+  numMeas = length(data)
+  measOps = Dict()
+  tomoData = Array(Float64[])
+  varData = Array(Float64[])
+  if isa(data, Dict)
     datatemp = Dict()
-    datatemp[1]=data
-    numMeas=1
+    datatemp[1] = data
+    numMeas = 1
   else
     datatemp = data
   end
@@ -177,23 +169,23 @@ function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
     #Average over calibration repeats
     calData = mean(reshape(real(datatemp[ct]["data"][end-nbrCalRepeats*(2^nbrQubits)+1:end]), nbrCalRepeats, 2^nbrQubits), 1);
     #Pull out the calibrations as diagonal measurement operators
-    measOps[ct] = diagm(calData[:]);
+    measOps[ct] = diagm(calData[:])
 
     #The data to invert
 
-    tomoData = [tomoData;  real(datatemp[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)])];
+    tomoData = [tomoData;  real(datatemp[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)])]
 
     #variance
-    varData = [varData; datatemp[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)]];
+    varData = [varData; datatemp[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)]]
 
   end
   #Map each experiment to the appropriate readout pulse
-  measOpMap = reshape(repmat(transpose(1:numMeas), nbrPulses^nbrQubits, 1), numMeas*(nbrPulses^nbrQubits), 1);
+  measOpMap = reshape(repmat(transpose(1:numMeas), nbrPulses^nbrQubits, 1), numMeas*(nbrPulses^nbrQubits), 1)
 
-  measPulseMap = repmat((1:nbrPulses^nbrQubits), numMeas, 1);
+  measPulseMap = repmat((1:nbrPulses^nbrQubits), numMeas, 1)
   #Use a helper to get the measurement unitaries.
-  measPulseUs = tomo_gate_set(nbrQubits, nbrPulses);
-  varMat = diagm(varData[:]);
+  measPulseUs = tomo_gate_set(nbrQubits, nbrPulses)
+  varMat = diagm(varData[:])
 
   #Now call the inversion routines
 
@@ -207,40 +199,24 @@ function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
   return (rhoLSQ, rhoSDP)
 end
 
-function rho2pauli(rho)
-  #converts a density matrix to a Pauli set
+"""
+    rho2pauli(rho)
 
+Convert a density matrix to a Pauli set
+"""
+function rho2pauli(rho)
   nbrQubits = Int(log2(size(rho,1)));
   kronMat = zeros(Int, 4^nbrQubits, nbrQubits);
   for qubitct = 1:nbrQubits
-    kronMat[:,qubitct] = reshape(repmat((0:3)', 4^(nbrQubits-qubitct), 4^(qubitct-1)), 4^nbrQubits, 1);
+    kronMat[:,qubitct] = reshape(repmat((1:4)', 4^(nbrQubits-qubitct), 4^(qubitct-1)), 4^nbrQubits, 1);
   end
 
   pauliVec = ones(4^nbrQubits,1);
     for ii = 1:4^nbrQubits
-        pauliVec[ii] = real(trace(rho*pauli(kronMat[ii,:][:])));
-end
-
-    pauliStrs1Q = ["I","X","Y","Z"]
-    pauliStrs = cell(4^nbrQubits, 1);
-
-for paulict = 1:4^nbrQubits
-        pauliStrs[paulict] = "";
-    for qubitct = 1:nbrQubits
-        pauliStrs[paulict] = pauliStrs[paulict]*pauliStrs1Q[kronMat[paulict, qubitct]+1];
+        pauliVec[ii] = real(trace(rho*allpaulis(1)[kronMat[ii,:][:]][1]));
     end
-    end
-    pauliVec =  pauliVec[sortperm(map(pauliHamming,pauliStrs)[:])]
-    pauliStrs = pauliStrs[sortperm(map(pauliHamming,pauliStrs)[:])] #reorder
+
+    pauliVec =  pauliVec[sortperm(map(weight,allpaulis(nbrQubits)))]
+    pauliStrs = map(AbstractString, allpaulis(nbrQubits)[sortperm(map(weight,allpaulis(nbrQubits)))]) #reorder
     return pauliVec, pauliStrs
-end
-
-function pauliHamming(str)
-    weight = 0;
-    for pauli = str
-        if pauli != 'I'
-            weight = weight + 1;
-        end
-    end
-    return weight
 end
