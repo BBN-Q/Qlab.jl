@@ -10,4 +10,5 @@ module Qlab
 	include("SavitskyGolay.jl")
 	include("read_records.jl")
 	include("common_fits.jl")
+	include("resonator_fits.jl")
 end
