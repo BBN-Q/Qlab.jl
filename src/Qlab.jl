@@ -12,4 +12,5 @@ module Qlab
 	include("common_fits.jl")
 	include("tomography.jl")
 	include("plotting.jl")
+	include("resonator_fits.jl")
 end
