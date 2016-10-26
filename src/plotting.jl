@@ -11,9 +11,9 @@ function plot_ss_hists(shots_0, shots_1)
   sns.set_style(Dict("ytick.direction" => "in"))
   w=4
   figure(figsize=(w,w/1.4))
-  plot(hist_0,label=L"$|0\rangle$")
-  plot(hist_1,label=L"$|1\rangle$")
-  ylabel("Counts")
+  plot(hist_0.x, hist_0.density/sum(hist_0.density),label=L"$|0\rangle$")
+  plot(hist_1.x, hist_1.density/sum(hist_1.density),label=L"$|1\rangle$")
+  ylabel("Fraction of counts")
   xlabel("Homodyne voltage (a.u.)")
   lgd = legend()
   annotate(@sprintf("Fid. = %0.2f", fidelity),
@@ -97,6 +97,10 @@ end
 
 function lbllz()
   ylabel(L"\langle Z \rangle")
+end
+
+function lbllpdeg()
+  ylabel("Phase (deg)")
 end
 
 function annotate_plot(message, vals...; coords = [0.75, 0.9])
