@@ -379,7 +379,7 @@ function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_
   kde_10 = kde((a1[3:4:end],a2[3:4:end]))
   kde_11 = kde((a1[4:4:end],a2[4:4:end]))
   xpts,ypts,assign_mat = digitize_2D(kde_00,kde_01,kde_10,kde_11, grid_dim)
-  smoothed_mat = smooth_2D_map(assign_mat, nn_quorum);
+  smoothed_mat = smooth_2D_map(assign_mat; dig_thr = nn_quorum);
   fidelity_mat = get_fidelities_2D([kde_00 kde_01 kde_10 kde_11], xpts, ypts, smoothed_mat)
   if showPlot
     fig = figure("pyplot_surfaceplot",figsize=(5,4))
