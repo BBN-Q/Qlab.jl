@@ -1,4 +1,4 @@
-using SCS, QuantumInfo, Convex, Cliffords
+using QuantumTomography, Cliffords
 
 """
     tomo_gate_set(nbrQubits, nbrPulses; pulse_type, prep_meas)
@@ -67,78 +67,85 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
     return gateSet
 end
 
-function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+"""
+    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
 
-    #Function to perform least-squares inversion of state tomography data
-    #
-    # expResults : data array
-    # varmat : convariance matrix for data
-    # measPulseMap: array mapping each experiment to a measurement readout
-    # pulse
-    # measOpMap: array mapping each experiment to a measurement channel
-    # measPulseUs : cell array of unitaries of measurement pulses
-    # measOps : cell array of measurement operators for each channel
-    # n : number of qubits
+Function to perform least-squares inversion of state tomography data.
+
+   + expResults : data array
+   + varmat : convariance matrix for data
+   + measPulseMap : array mapping each experiment to a measurement readout
+     pulse
+   + measOpMap: array mapping each experiment to a measurement channel
+   + measPulseUs : array of unitaries of measurement pulses
+   + measOps : array of measurement operators for each channel
+   + n : number of qubits
+"""
+function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
 
     #Construct the predictor matrix.  Each row is an experiment.  The number of
     #columns is 4^n for the size of the vectorized density matrix.
     #%First transform the measurement operators by the readout pulses to create
     #the effective measurement operators and then flatten into row of the
     #predictor matrix
-    predictorMat = complex(zeros(length(expResults), 4^n));
+    predictorMat = zeros(Complex128, length(expResults), 4^n)
     for expct = 1:length(expResults)
-
-            tmp = transpose(measPulseUs[Int(measPulseMap[Int(expct)])]'*measOps[Int(measOpMap[Int(expct)])]*measPulseUs[Int(measPulseMap[Int(expct)])]);
-            predictorMat[expct,:] = tmp[:];
-    end
-        invVarMat = inv(varMat);
-        A = predictorMat'*invVarMat*predictorMat
-        B = predictorMat'*invVarMat*expResults
-        rhoLSQ = A\B
-        rhoLSQ = reshape(rhoLSQ, 2^n, 2^n);
-        return rhoLSQ
+        tmp = transpose(measPulseUs[measPulseMap[expct]]'*measOps[measOpMap[expct]]*measPulseUs[measPulseMap[expct]])
+        predictorMat[expct,:] = tmp[:]
     end
 
-    function QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
-    #Function to perform constrained SDP optimization of a physical density matrix
-    #consitent with the data.
-    #
-    # expResults : structure array (length total number of experiments)
-    #   each structure containts fields data, measPulse, measOperator
-    # measPulses : cell array of unitaries of measurment pulses
-    # measOps : cell array of measurment operators
-    # n : number of qubits
+    invVarMat = inv(varMat)
+    A = predictorMat'*invVarMat*predictorMat
+    B = predictorMat'*invVarMat*expResults
+    rhoLSQ = A\B
+    rhoLSQ = reshape(rhoLSQ, 2^n, 2^n)
+    return rhoLSQ
+end
 
+"""
+    QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+
+Function to perform constrained SDP optimization of a physical density matrix
+consitent with the data.
+
+   + expResults : structure array (length total number of experiments)
+                  each structure containts fields data, measPulse, measOperator
+   + measPulses : array of unitaries of measurement pulses
+   + measOps : array of measurement operators
+   + n : number of qubits
+"""
+function QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
     #Construct the predictor matrix.  Each row is an experiment.  The number of
     #columns is 4^n for the size of the vectorized density matrix.
     #First transform the measurement operators by the readout pulses to create
     #the effective measurement operators and then flatten into row of the
     #predictor matrix
 
-     predictorMat = complex(zeros(length(expResults), 4^n));for expct = 1:length(expResults)
-      tmp = transpose(measPulseUs[Int(measPulseMap[Int(expct)])]'*measOps[Int(measOpMap[Int(expct)])]*measPulseUs[Int(measPulseMap[Int(expct)])]);
-         predictorMat[expct,:] = tmp[:];
+    predictorMat = zeros(Complex128, length(expResults), 4^n)
+    for expct = 1:length(expResults)
+        tmp = transpose(measPulseUs[measPulseMap[expct]]'*measOps[measOpMap[expct]]*measPulseUs[measPulseMap[expct]])
+        predictorMat[expct,:] = tmp[:]
     end
 
-    solver = SCSSolver(verbose=0, max_iters=10_000, eps = 1e-8)
+    # solver = SCSSolver(verbose=0, max_iters=10_000, eps = 1e-8)
 
-    invVarMat = inv(varMat);
-    invVarMat = real(sqrtm(real(sqrtm(invVarMat'*invVarMat))));
+    # invVarMat = inv(varMat);
+    # invVarMat = real(sqrtm(real(sqrtm(invVarMat'*invVarMat))));
 
+    # ρr = Variable(2^n, 2^n)
+    # ρi = Variable(2^n, 2^n)
 
-    ρr = Variable(2^n, 2^n)
-    ρi = Variable(2^n, 2^n)
-
-    constraints = trace(ρr) == 1
-    constraints += trace(ρi) == 0
-    constraints += isposdef([ρr ρi; -ρi ρr])
+    # constraints = trace(ρr) == 1
+    # constraints += trace(ρi) == 0
+    # constraints += isposdef([ρr ρi; -ρi ρr])
 
     #We want to minimize the difference between predicted results and experimental results
-    problem = minimize( vecnorm(invVarMat*(expResults - [real(predictorMat) imag(predictorMat)]*[vec(ρr); vec(ρi)]), 2)^2, constraints )
-    solve!(problem, solver)
+    # problem = minimize( vecnorm(invVarMat*(expResults - [real(predictorMat) imag(predictorMat)]*[vec(ρr); vec(ρi)]), 2)^2, constraints )
+    # solve!(problem, solver)
 
     println("Done")
-    return (ρr.value - 1im*ρi.value)
+    # return (ρr.value - 1im*ρi.value)
+    return eye(2*n)
 end
 
 
