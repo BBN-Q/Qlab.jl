@@ -56,20 +56,13 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
         error("Invalid number of pulses");
     end
 
-    # Now kron things together
-    # First create a matrix with giving the mod nbrPulses description of which
-    # 1Q gates to kron together
-    numGates = nbrPulses^nbrQubits;
-    kronMat = zeros(UInt8, numGates, nbrQubits);
-    for ct = 1:nbrQubits
-        kronMat[:,ct] = repeat(1:nbrPulses,
-                               inner=nbrPulses^(nbrQubits-ct),
-                               outer=nbrPulses^(ct-1))
-    end
-
+    # Now the gate set is the cartesian product of the 1Q gate set over the
+    # number of qubits. Unfornately, Julia's default product is anti-
+    # lexicographic (first index is fastest), so we need to reverse the
+    # index tuples.
     gateSet = Array{Complex128,2}[]
-    for gatect = 1:numGates
-        push!(gateSet, kron(1, [Uset1Q[kronMat[gatect, qubitct]] for qubitct=1:nbrQubits]...))
+    for idx in Base.product([1:nbrPulses for _ in 1:nbrQubits]...)
+        push!(gateSet, kron(1, [Uset1Q[i] for i in reverse(idx)]...))
     end
     return gateSet
 end
