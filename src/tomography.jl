@@ -59,10 +59,10 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
     # Now the gate set is the cartesian product of the 1Q gate set over the
     # number of qubits. Unfornately, Julia's default product is anti-
     # lexicographic (first index is fastest), so we need to reverse the
-    # index tuples.
+    # gate order before taking the kronecker product.
     gateSet = Array{Complex128,2}[]
-    for idx in Base.product([1:nbrPulses for _ in 1:nbrQubits]...)
-        push!(gateSet, kron(1, [Uset1Q[i] for i in reverse(idx)]...))
+    for gates in Base.product([Uset1Q for _ in 1:nbrQubits]...)
+        push!(gateSet, kron(1, reverse(gates)...))
     end
     return gateSet
 end
