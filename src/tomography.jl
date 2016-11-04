@@ -73,88 +73,68 @@ end
 Function to perform least-squares inversion of state tomography data.
 
    + expResults : data array
-   + varmat : convariance matrix for data
+   + varmat : covariance matrix for data
    + measPulseMap : array mapping each experiment to a measurement readout
      pulse
    + measOpMap: array mapping each experiment to a measurement channel
    + measPulseUs : array of unitaries of measurement pulses
    + measOps : array of measurement operators for each channel
-   + n : number of qubits
 """
-function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
-
-    #Construct the predictor matrix.  Each row is an experiment.  The number of
-    #columns is 4^n for the size of the vectorized density matrix.
-    #%First transform the measurement operators by the readout pulses to create
-    #the effective measurement operators and then flatten into row of the
-    #predictor matrix
-    predictorMat = zeros(Complex128, length(expResults), 4^n)
-    for expct = 1:length(expResults)
-        tmp = transpose(measPulseUs[measPulseMap[expct]]'*measOps[measOpMap[expct]]*measPulseUs[measPulseMap[expct]])
-        predictorMat[expct,:] = tmp[:]
+function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+    # construct the vector of observables for each experiment
+    obs = Matrix{Complex128}[]
+    for ct in 1:length(expResults)
+        U = measPulseUs[measPulseMap[ct]]
+        op = measOps[measOpMap[ct]]
+        push!(obs, U' * op * U)
     end
+    tomo = FreeLSStateTomo(obs)
 
-    invVarMat = inv(varMat)
-    A = predictorMat'*invVarMat*predictorMat
-    B = predictorMat'*invVarMat*expResults
-    rhoLSQ = A\B
-    rhoLSQ = reshape(rhoLSQ, 2^n, 2^n)
-    return rhoLSQ
+    ρest, obj, status = fit(tomo, expResults, varMat, algorithm=:GLS)
+    if status != :Optimal
+        println("FreeLSStateTomo fit return status: $status")
+    end
+    return ρest
 end
 
 """
-    QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+    QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
 
-Function to perform constrained SDP optimization of a physical density matrix
-consitent with the data.
+Function to perform maximum-likelihood quantum state tomography.
 
-   + expResults : structure array (length total number of experiments)
-                  each structure containts fields data, measPulse, measOperator
-   + measPulses : array of unitaries of measurement pulses
-   + measOps : array of measurement operators
-   + n : number of qubits
+   + expResults : data array
+   + varmat : covariance matrix for data
+   + measPulseMap : array mapping each experiment to a measurement readout
+     pulse
+   + measOpMap: array mapping each experiment to a measurement channel
+   + measPulseUs : array of unitaries of measurement pulses
+   + measOps : array of measurement operators for each channel
 """
-function QST_SDP(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
-    #Construct the predictor matrix.  Each row is an experiment.  The number of
-    #columns is 4^n for the size of the vectorized density matrix.
-    #First transform the measurement operators by the readout pulses to create
-    #the effective measurement operators and then flatten into row of the
-    #predictor matrix
-
-    predictorMat = zeros(Complex128, length(expResults), 4^n)
-    for expct = 1:length(expResults)
-        tmp = transpose(measPulseUs[measPulseMap[expct]]'*measOps[measOpMap[expct]]*measPulseUs[measPulseMap[expct]])
-        predictorMat[expct,:] = tmp[:]
+function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+    # construct the vector of observables for each experiment
+    obs = Matrix{Complex128}[]
+    for ct in 1:length(expResults)
+        U = measPulseUs[measPulseMap[ct]]
+        op = measOps[measOpMap[ct]]
+        push!(obs, U' * op * U)
     end
+    tomo = MLStateTomo(obs)
 
-    # solver = SCSSolver(verbose=0, max_iters=10_000, eps = 1e-8)
-
-    # invVarMat = inv(varMat);
-    # invVarMat = real(sqrtm(real(sqrtm(invVarMat'*invVarMat))));
-
-    # ρr = Variable(2^n, 2^n)
-    # ρi = Variable(2^n, 2^n)
-
-    # constraints = trace(ρr) == 1
-    # constraints += trace(ρi) == 0
-    # constraints += isposdef([ρr ρi; -ρi ρr])
-
-    #We want to minimize the difference between predicted results and experimental results
-    # problem = minimize( vecnorm(invVarMat*(expResults - [real(predictorMat) imag(predictorMat)]*[vec(ρr); vec(ρi)]), 2)^2, constraints )
-    # solve!(problem, solver)
-
-    println("Done")
-    # return (ρr.value - 1im*ρi.value)
-    return eye(2*n)
+    # TODO MLStateTomo does not currently support variance data
+    ρest, obj, status = fit(tomo, expResults)
+    if status != :Optimal
+        println("MLStateTomo fit return status: $status")
+    end
+    return ρest
 end
 
 
 function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
 
     numMeas = length(data)
-    measOps = Dict()
-    tomoData = Array(Float64[])
-    varData = Array(Float64[])
+    measOps = Matrix{Float64}[]
+    tomoData = Float64[]
+    varData = Float64[]
     if isa(data, Dict)
         datatemp = Dict()
         datatemp[1] = data
@@ -164,35 +144,35 @@ function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
     end
 
     for ct = 1:numMeas
-        #Average over calibration repeats
+        # Average over calibration repeats
         calData = mean(reshape(real(datatemp[ct]["data"][end-nbrCalRepeats*(2^nbrQubits)+1:end]), nbrCalRepeats, 2^nbrQubits), 1);
-        #Pull out the calibrations as diagonal measurement operators
-        measOps[ct] = diagm(calData[:])
+        # Pull out the calibrations as diagonal measurement operators
+        push!(measOps, diagm(calData[:]))
 
         #The data to invert
-        tomoData = [tomoData;  real(datatemp[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)])]
+        append!(tomoData, real(datatemp[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
 
         #variance
-        varData = [varData; datatemp[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)]]
+        append!(varData, datatemp[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)] )
     end
-    #Map each experiment to the appropriate readout pulse
+    # Map each experiment to the appropriate readout pulse
     measOpMap = reshape(repmat(transpose(1:numMeas), nbrPulses^nbrQubits, 1), numMeas*(nbrPulses^nbrQubits), 1)
 
     measPulseMap = repmat((1:nbrPulses^nbrQubits), numMeas, 1)
-    #Use a helper to get the measurement unitaries.
+    # Use a helper to get the measurement unitaries.
     measPulseUs = tomo_gate_set(nbrQubits, nbrPulses)
     varMat = diagm(varData[:])
 
-    #Now call the inversion routines
+    # Now call the inversion routines
 
-    #First least squares
-    rhoLSQ = QST_LSQ(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits);
-    #plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot);
+    # First least squares
+    rhoLSQ = QST_LSQ(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits)
+    # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 
-    #Now constrained SDP
-    rhoSDP = QST_SDP(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits);
+    # Now constrained maximum-likelihood
+    rhoML = QST_ML(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits)
 
-    return (rhoLSQ, rhoSDP)
+    return rhoLSQ, rhoML
 end
 
 """
