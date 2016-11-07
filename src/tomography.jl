@@ -177,21 +177,11 @@ end
 """
     rho2pauli(rho)
 
-Convert a density matrix to a Pauli set
+Convert a density matrix to a Pauli set vector.
 """
-function rho2pauli(rho)
-    nbrQubits = Int(log2(size(rho,1)));
-    kronMat = zeros(Int, 4^nbrQubits, nbrQubits);
-    for qubitct = 1:nbrQubits
-        kronMat[:,qubitct] = reshape(repmat((1:4)', 4^(nbrQubits-qubitct), 4^(qubitct-1)), 4^nbrQubits, 1);
-    end
-
-    pauliVec = ones(4^nbrQubits,1);
-    for ii = 1:4^nbrQubits
-        pauliVec[ii] = real(trace(rho*allpaulis(1)[kronMat[ii,:][:]][1]));
-    end
-
-    pauliVec =  pauliVec[sortperm(map(weight,allpaulis(nbrQubits)))]
-    pauliStrs = map(AbstractString, allpaulis(nbrQubits)[sortperm(map(weight,allpaulis(nbrQubits)))]) #reorder
-    return pauliVec, pauliStrs
+function rho2pauli(ρ)
+    n = round(Int, log2(size(ρ,1)))
+    paulis = sort(allpaulis(n), by=weight)
+    paulivec = [real(trace(ρ * p)) for p in paulis]
+    return paulivec, paulis
 end
