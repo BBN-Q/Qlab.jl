@@ -118,12 +118,11 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
         op = measOps[measOpMap[ct]]
         push!(obs, U' * op * U)
     end
-    tomo = MLStateTomo(obs)
+    tomo = LSStateTomo(obs)
 
-    # TODO MLStateTomo does not currently support variance data
-    ρest, obj, status = fit(tomo, expResults)
+    ρest, obj, status = fit(tomo, expResults, varMat)
     if status != :Optimal
-        println("MLStateTomo fit return status: $status")
+        println("LSStateTomo fit return status: $status")
     end
     return ρest
 end
