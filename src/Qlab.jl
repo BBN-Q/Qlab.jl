@@ -5,9 +5,9 @@ module Qlab
 
 	include("load_data.jl")
 	include("KT_estimation.jl")
-	include("pauliAlphabet.jl")
 	include("comp_to_paulis.jl")
 	include("SavitskyGolay.jl")
 	include("read_records.jl")
 	include("common_fits.jl")
+	include("tomography.jl")
 end
