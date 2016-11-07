@@ -3,7 +3,7 @@ function hilbert(signal)
 	# in essense, we just want to set negative frequency components to zero
 	spectrum = fft(signal)
 	n = length(signal)
-	midpoint = ceil(n/2)
+	@compat midpoint = Integer(ceil(n/2))
 
 	kernel = zeros(n)
 	kernel[1] = 1
@@ -15,11 +15,11 @@ function hilbert(signal)
 end
 
 function KT_estimation(data, timeStep, order)
-	#Perform a modified KT estimation to obtain the estimates of the parameters 
-	#from a set of data. 
+	#Perform a modified KT estimation to obtain the estimates of the parameters
+	#from a set of data.
 	#
 	# function [freqs, Tcs, amps] = KT_estimation(data, timeStep, order)
-	# 
+	#
 	# See ? Van Huffel, S. (1993). Enhanced resolution based on minimum variance estimation and exponential data modeling.
 	#       Signal Processing, 33(3), 333-355. doi:10.1016/0165-1684(93)90130-3
 
@@ -28,7 +28,7 @@ function KT_estimation(data, timeStep, order)
 	#Create the raw Hankel matrix
 	N = length(analyticSig)
 	K = order
-	M = itrunc(N/2)-1
+	@compat M = trunc(Integer, N/2)-1
 	L = N-M+1
 	H = zeros(Complex128, L, M)
 	for ct = 1:M
@@ -48,7 +48,7 @@ function KT_estimation(data, timeStep, order)
 
 	#Reconstruct the data from the averaged anti-diagonals
 	cleanedData = zeros(Complex128, N)
-	tmpMat = fliplr(Hbar)
+	@compat tmpMat = flipdim(Hbar,2)
 	idx = -L+1
 	for ct = N:-1:1
 	    cleanedData[ct] = mean(diag(tmpMat,idx))
