@@ -1,4 +1,4 @@
-using LsqFit
+using LsqFit, Distributions
 
 function fit_t1(xpts, ypts)
 	model(t, p) = p[1]*exp(-t ./ p[2]) + p[3]
@@ -20,6 +20,12 @@ function fit_line(xpts, ypts)
   return result.param, errors, fit_curve
 end
 
+"""
+	fit_ramsey(xpts, ypts, weights=[])
+
+Fit data to a Ramsey decay of the form p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5],
+with optional weights for each point.
+"""
 function fit_ramsey(xpts, ypts)
 	model(t, p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t) + p[4]
 
@@ -31,7 +37,70 @@ function fit_ramsey(xpts, ypts)
 
 	result = curve_fit(model, xpts, ypts, p_guess)
 	errors = estimate_errors(result)
-	return result.param[2:3], errors[2:3]
+	xfine = linspace(xpts[1],xpts[end],1001)
+	fit_curve = (xfine, model(xfine, result.param))
+	return result.param[2:3], errors[2:3], fit_curve
+end
+
+"""
+	fit_twofreq_ramsey(xpts, ypts, weights, compare=false, verbose=false)
+
+Fit a two-frequency decaying cosine to Ramsey data, with optional weights.
+If `compare`, will compare the fit to a one-frequency Ramsey fit using
+a statistical F-test. If `verbose`, will print results of fits.
+"""
+function fit_twofreq_ramsey(xpts, ypts, weights=[])
+    model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
+		    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
+    #Use KT estimation to get a guess for the fit
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
+    inds = find(x->(x > 0), Ts)
+    if length(inds) < 2
+	@printf("KT Estimation for two frequency failed.\n")
+	return [], []
+    end
+    freqs = freqs[inds]
+    Ts = Ts[inds]
+    amps = amps[inds]
+    phases = angle(amps)
+    amps = abs(amps)
+    p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2],phases[2], mean(ypts)]
+    if isempty(weights)
+  	result2 = curve_fit(model, xpts, ypts, p_guess)
+    else
+	result2 = curve_fit(model, xpts, ypts, weights, p_guess)
+    end
+    errors2 = estimate_errors(result2)
+    # compute weighted least squares error, assuming weights = pointwise inverse variance
+    sq_err2 = ((model(xpts, result2.param) - ypts).^2).*weights
+
+    xfine = linspace(xpts[1],xpts[end],1001)
+    fit_curve2 = (xfine, model(xfine, result2.param))
+    
+    model1(t,p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
+    idx = indmax(abs(amps))
+    p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)]
+    if isempty(weights)
+	result1 = curve_fit(model1, xpts, ypts, p_guess)
+    else
+	result1 = curve_fit(model1, xpts, ypts, weights, p_guess)
+    end
+    errors1 = estimate_errors(result1)
+    # compute weighted least squares error, assuming weights = pointwise inverse variance
+    sq_err1 = ((model1(xpts, result1.param) - ypts).^2).*weights
+
+    fit_curve1 = (xfine, model1(xfine, result1.param))
+
+    # AIC computation
+    k1 = 3
+    k2 = 6 
+    corr(k,n) = (k+1)*(k+1)/(n-k-2)
+    aicc(e,k,n) = 2 * k + e + corr(k,n)
+
+    aic = aicc(sq_err2,k2,length(xpts)) - aicc(sq_err1,k1,length(xpts))
+
+    return (result1.param, errors1, fit_curve1), (result2.param, errors2, fit_curve2), aic > 0 ? 1 : 2
 end
 
 function fit_sin(xpts, ypts)

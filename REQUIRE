@@ -5,4 +5,5 @@ LsqFit
 Compat
 StatsBase
 QuantumTomography
+Distributions
 KernelDensity
