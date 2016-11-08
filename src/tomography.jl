@@ -127,49 +127,42 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
     return ρest
 end
 
+analyzeStateTomo(data::Dict{String,Any}, nbrQubits, nbrPulses, nbrCalRepeats=2) =
+    analyzeStateTomo([data], nbrQubits, nbrPulses, nbrCalRepeats)
+function analyzeStateTomo(data::Vector{Dict{String,Any}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
 
-function analyzeStateTomo(data, nbrQubits, nbrPulses, nbrCalRepeats)
-
-    numMeas = length(data)
     measOps = Matrix{Float64}[]
     tomoData = Float64[]
     varData = Float64[]
-    if isa(data, Dict)
-        datatemp = Dict()
-        datatemp[1] = data
-        numMeas = 1
-    else
-        datatemp = data
-    end
+    numMeas = length(data)
 
     for ct = 1:numMeas
         # Average over calibration repeats
-        calData = mean(reshape(real(datatemp[ct]["data"][end-nbrCalRepeats*(2^nbrQubits)+1:end]), nbrCalRepeats, 2^nbrQubits), 1);
+        calData = real(data[ct]["data"][end-nbrCalRepeats*(2^nbrQubits)+1:end])
+        avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), 1)
         # Pull out the calibrations as diagonal measurement operators
-        push!(measOps, diagm(calData[:]))
+        push!(measOps, diagm(avgCalData[:]))
 
         #The data to invert
-        append!(tomoData, real(datatemp[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
+        append!(tomoData, real(data[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
 
         #variance
-        append!(varData, datatemp[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)] )
+        append!(varData, data[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)] )
     end
     # Map each experiment to the appropriate readout pulse
-    measOpMap = reshape(repmat(transpose(1:numMeas), nbrPulses^nbrQubits, 1), numMeas*(nbrPulses^nbrQubits), 1)
-
-    measPulseMap = repmat((1:nbrPulses^nbrQubits), numMeas, 1)
+    measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
+    measPulseMap = repeat(1:nbrPulses^nbrQubits, outer=numMeas)
     # Use a helper to get the measurement unitaries.
     measPulseUs = tomo_gate_set(nbrQubits, nbrPulses)
-    varMat = diagm(varData[:])
 
     # Now call the inversion routines
-
     # First least squares
-    rhoLSQ = QST_LSQ(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits)
-    # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
+    rhoLSQ = QST_LSQ(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
 
     # Now constrained maximum-likelihood
-    rhoML = QST_ML(tomoData, varMat, measPulseMap, measOpMap, measPulseUs, measOps, nbrQubits)
+    rhoML = QST_ML(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
+
+    # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 
     return rhoLSQ, rhoML
 end
