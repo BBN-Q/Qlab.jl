@@ -3,7 +3,7 @@ function hilbert(signal)
 	# in essense, we just want to set negative frequency components to zero
 	spectrum = fft(signal)
 	n = length(signal)
-	@compat midpoint = Integer(ceil(n/2))
+	@compat midpoint = ceil(Int, n/2))
 
 	kernel = zeros(n)
 	kernel[1] = 1
