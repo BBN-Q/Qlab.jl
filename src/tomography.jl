@@ -88,9 +88,15 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
         op = measOps[measOpMap[ct]]
         push!(obs, U' * op * U)
     end
+    # in order to constrain the trace to unity, add an identity observerable
+    # and a corresponding value to expResults
+    push!(obs, eye(Complex128, size(measOps[1])...))
+    expResults2 = [expResults; 1]
+    # corresponding variance chosen arbitrarily (it should be very small)
+    varMat2 = [varMat; minimum(varMat)]
     tomo = FreeLSStateTomo(obs)
 
-    ρest, obj, status = fit(tomo, expResults, varMat, algorithm=:GLS)
+    ρest, obj, status = fit(tomo, expResults2, varMat2, algorithm=:GLS)
     if status != :Optimal
         println("FreeLSStateTomo fit return status: $status")
     end
