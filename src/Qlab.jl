@@ -10,4 +10,5 @@ module Qlab
 	include("read_records.jl")
 	include("common_fits.jl")
 	include("tomography.jl")
+	include("plotting.jl")
 end
