@@ -3,7 +3,7 @@ using HDF5, JSON, Compat
 """
     load_data(filename)
 
-Load hdf header and data
+Load hdf5 header and data
 """
 function load_data(filename::AbstractString)
 
@@ -21,11 +21,11 @@ function load_data(filename::AbstractString)
 		end
 
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
-		data = Array{Any}(nbrDataSets)
+		data = Vector{Dict{String,Any}}(nbrDataSets)
 
 		for ct in 1:nbrDataSets
 			raw_data = read(f["DataSet$(ct)/real"]) + im*read(f["DataSet$(ct)/imag"])
-			data[ct] = @compat Dict{AbstractString,Any}("data" => raw_data)
+			data[ct] = Dict{String,Any}("data" => raw_data)
 			if has(f, "DataSet$(ct)/realvar")
 				data[ct]["realvar"] = read(f["DataSet$(ct)/realvar"])
 				data[ct]["imagvar"] = read(f["DataSet$(ct)/imagvar"])

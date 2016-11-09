@@ -1,5 +1,6 @@
-julia 0.3
+julia 0.5
 JSON
 HDF5
 LsqFit
 Compat
+QuantumTomography
