@@ -51,6 +51,21 @@ function plot2D(data, quad = "real"; normalize=false)
   ylim([minimum(ypoints),maximum(ypoints)])
 end
 
+function pauli_set_plot(rho; rho_ideal = [], fig_width = 3.5, fig_height = 3.5, bar_width=0.6)
+    pauli_vec, pauli_ops = rho2pauli(rho)
+    figure(figsize=(fig_width,fig_height))
+    ind=1:length(pauli_vec)
+     if ~isempty(rho_ideal)
+        pauli_vec_ideal  = rho2pauli(rho_ideal)[1]
+    end
+    xticks(ind + bar_width/2., map(string,pauli_ops))
+    ylim([-1.05,1.05])
+    xlabel("Pauli operator")
+    ylabel("Expectation value")
+    title("State tomography")
+    legend()
+end
+
 function lblbf()
   xlabel("Frequency (GHz)")
 end
