@@ -96,7 +96,7 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     varMat2 = [varMat; minimum(varMat)]
     tomo = FreeLSStateTomo(obs)
 
-    ρest, obj, status = fit(tomo, expResults2, varMat2, algorithm=:GLS)
+    ρest, obj, status = fit(tomo, expResults2, varMat2)
     if status != :Optimal
         println("FreeLSStateTomo fit return status: $status")
     end
