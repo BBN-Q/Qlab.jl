@@ -12,9 +12,9 @@ function test_digitize(sep; C=1000, K=1000)
     dm, pe0m, pe1m = digitize(rvolts, cal0, cal1, mode=:max)
     de, pe0e, pe1e = digitize(rvolts, cal0, cal1, mode=:equal)
     # compute theoretical prob of being correct
-    pc = 1/2 - 1/2*erf(sep/(2*sqrt(2)))
+    pe = 1/2 - 1/2*erf(sep/(2*sqrt(2)))
     
-    return pc, 
+    return pe, 
            sum(abs(dm-rbits))/length(rbits), 
            sum(abs(de-rbits))/length(rbits), 
            pe0m, 
