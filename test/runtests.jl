@@ -15,3 +15,5 @@ function test_comp_to_paulis()
 end
 
 test_comp_to_paulis()
+
+include("test-digitize.jl")
