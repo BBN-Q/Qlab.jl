@@ -9,13 +9,20 @@ function test_digitize(sep; C=1000, K=1000)
     rvolts = sep*rbits + randn(K)
 
     # estimate of prob of being correct
-    pc_est_m = sum(rbits .== digitize(rvolts, cal0, cal1, mode=:max))/K
-    pc_est_e = sum(rbits .== digitize(rvolts, cal0, cal1, mode=:equal))/K
+    dm, pe0m, pe1m = digitize(rvolts, cal0, cal1, mode=:max)
+    de, pe0e, pe1e = digitize(rvolts, cal0, cal1, mode=:equal)
     # compute theoretical prob of being correct
-    pc     = 1/2 - 1/2*erf(sep/(2*sqrt(2)))
+    pc = 1/2 - 1/2*erf(sep/(2*sqrt(2)))
     
-    return pc, pc_est_m, pc_est_e
+    return pc, 
+           sum(abs(dm-rbits))/length(rbits), 
+           sum(abs(de-rbits))/length(rbits), 
+           pe0m, 
+           pe1m, 
+           pe0e, 
+           pe1e 
+
 end
 
-@test all(floor(mean(reduce(hcat,[[test_digitize(0.75)...] for _ in 1:1000]),2)*100)/100 .== 0.35)
-@test all(floor(mean(reduce(hcat,[[test_digitize(0.5,C=10_000,K=10_000)...] for _ in 1:1000]),2)*100)/100 .== 0.40)
+@test all(map(x->isapprox(x,0.35,atol=5e-2),mean(reduce(hcat,[[test_digitize(0.75)...] for _ in 1:1000]),2)))
+@test all(map(x->isapprox(x,0.40,atol=5e-2),mean(reduce(hcat,[[test_digitize(0.50)...] for _ in 1:1000]),2)))
