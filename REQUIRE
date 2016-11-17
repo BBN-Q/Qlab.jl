@@ -3,4 +3,5 @@ JSON
 HDF5
 LsqFit
 Compat
+StatsBase
 QuantumTomography
