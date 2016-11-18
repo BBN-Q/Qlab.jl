@@ -127,6 +127,7 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
 
   ind0=indMeas[1,:]
   ind1=indMeas[2,:]
+  nbins = 500
 
   if ~isa(Anum, Array)
     Anum = [Anum]
@@ -159,20 +160,18 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
   end
 
   datamat_A = zeros(numShots_A, numMeas_A*(numSegments-numCal)+numCal, length(Anum))
-  bins = zeros(500, length(Anum))
-  PDFvec = zeros(size(bins,1)-1,numMeas_A*(numSegments-numCal)+numCal, length(Anum))
+  bins = Array(LinSpace{Float64},length(Anum))
+  PDFvec = zeros(nbins,numMeas_A*(numSegments-numCal)+numCal, length(Anum))
 
   for Aind = 1:length(Anum)
 
     datamat_A[:, :, Aind] = splitdata(data_A[:, Aind],numShots_A,numMeas_A*(numSegments-numCal)+numCal)
-    bins[:, Aind] = linspace(minimum(minimum(datamat_A[:, :, Aind])), maximum(maximum(datamat_A[:, :, Aind])),500)
+    bins[Aind] = linspace(minimum(minimum(datamat_A[:, :, Aind])), maximum(maximum(datamat_A[:, :, Aind])),nbins)
 
     #PDFvec_con = zeros(length(bins),numMeas*numSegments);
 
     for kk=1:numMeas_A*(numSegments-numCal)+numCal
-      #PDFvec[:,kk] = ksdensity(datamat_A(:,kk), bins);
-      PDFvec[:,kk, Aind] = hist(datamat_A[:, kk, Aind], bins[:, Aind])[2]
-
+      PDFvec[:,kk,Aind] = kde(datamat_A[:,kk,Aind], bins[Aind]).density
     end
   end
 
@@ -203,7 +202,7 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
     tempvec1 = 1-cumsum(abs(PDFvec[:,ind1[Aind],Aind]))
     err1[Aind] = tempvec1[indmaximum]
     @printf("Error for |1> for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], tempvec1[indmaximum])
-    opt_thr[Aind] = bins[indmaximum, Aind]
+    opt_thr[Aind] = bins[Aind][indmaximum]
     @printf("Optimum threshold for segments %d and %d = %.4f\n", ind0[Aind], ind1[Aind], opt_thr[Aind])
   end
 
