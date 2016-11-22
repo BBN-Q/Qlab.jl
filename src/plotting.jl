@@ -1,4 +1,5 @@
-using Formatting
+using PyPlot, KernelDensity
+# using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
   #single-shot readout histograms
@@ -49,6 +50,25 @@ function plot2D(data, quad = "real"; normalize=false)
   ylabel(data["ylabel"])
   xlim([minimum(xpoints),maximum(xpoints)])
   ylim([minimum(ypoints),maximum(ypoints)])
+end
+
+function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_width=0.6)
+    pauli_vec, pauli_ops = rho2pauli(rho)
+    figure(figsize=(fig_width,fig_height))
+    ind = 1:length(pauli_vec)
+    if ~isempty(rho_ideal)
+        pauli_vec_ideal, _  = rho2pauli(rho_ideal)
+        bar(ind, pauli_vec_ideal, color="green", label=L"$\rho_{ideal}$")
+    end
+    bar(ind, pauli_vec, label=L"$\rho_{actual}$")
+    xticks(ind + bar_width/2., map(string,pauli_ops))
+    ylim([-1.05,1.05])
+    xlabel("Pauli operator")
+    ylabel("Expectation value")
+    title("State tomography")
+    if ~isempty(rho_ideal)
+        legend()
+    end
 end
 
 function lblbf()
