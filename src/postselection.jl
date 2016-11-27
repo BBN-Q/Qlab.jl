@@ -103,7 +103,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
   return bins, PDFvec, PDFvec_con,data_con,opt_thr,datamat, fidvec_un, err0, err1, fidvec_con
 end
 
-function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,selectSign,docond,numCal;threshold=NaN)
+function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,selectMeas,selectSign,docond,numCal;threshold::Vector{Float64}=NaN)
   #data = data qubits
   #data = single ancilla qubit. Data to be postselected on
   #Anum = index of ancilla measurement
@@ -129,13 +129,6 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
   ind1=indMeas[2,:]
   nbins = 500
 
-  if ~isa(Anum, Array)
-    Anum = [Anum]
-  end
-  if ~isa(threshold, Array)
-    threshold = repmat([threshold],length(Anum), 1)
-  end
-
   data_A = zeros(length(data[1]), length(Anum))
   for (k, Aind) in enumerate(Anum)
     data_A[:, k] = real(data[Aind])
@@ -145,14 +138,9 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
   datamat = Dict()
   var_con = Dict()
   data_con = Dict()
-  ind=1
-  for kk = 1:num_data_meas
-    while ind in Anum
-      ind = ind+1
-    end
-    data_D[kk] = data[ind]
-    ind+=1
-  end
+
+  Dnum = setdiff(1:length(data), Anum)
+  [data_D[kk] = data[Dnum[kk]] for kk = 1:num_data_meas]
 
   numShots_A = Int64(floor(length(data_A[:, 1])/(numMeas_A*(numSegments-numCal)+numCal))) #assume same number of meas for all As
   for kk = 1:num_data_meas
@@ -259,6 +247,10 @@ function initByMsmt_2D(data,Anum,numSegments,numMeas_A,indMeas,selectMeas,select
   end
 
   return (bins,PDFvec,data_con,var_con,opt_thr,datamat, fidvec_un, err0, err1)
+end
+
+function initByMsmt_2D(data,Anum::Int,numSegments,numMeas_A,indMeas,selectMeas,selectSign,docond,numCal;threshold::Float64=NaN)
+  return initByMsmt_2D(data,[Anum],numSegments,numMeas_A,indMeas,selectMeas,selectSign,docond,numCal;threshold = fill(threshold,length(Anum)))
 end
 
 function splitdata(data, numseg, numsets)
