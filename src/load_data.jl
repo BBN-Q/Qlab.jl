@@ -13,11 +13,11 @@ function load_data(filename::AbstractString)
 		@assert version == 2
 
 		#Some headers are malformed...
-		header = try
-			JSON.parse(read(f["header"])[1])
+		try
+			header = JSON.parse(read(f["header"])[1])
 		catch
 			warn("Unable to parse header JSON structure")
-			Dict()
+			header = Dict{String,Any}()
 		end
 
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
@@ -59,9 +59,9 @@ end
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 """
 function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
-		# optionally, search for filenum instead of filename
-		# search in a subdirectory with today's date, if not specified
-		searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
-		filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
-		load_data(filename)
+	# optionally, search for filenum instead of filename
+	# search in a subdirectory with today's date, if not specified
+	searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
+	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
+	load_data(filename)
 end
