@@ -27,7 +27,6 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-
 function plot2D(data, quad = "real"; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
   ax = gca()
@@ -69,38 +68,6 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     if ~isempty(rho_ideal)
         legend()
     end
-end
-
-function lblbf()
-  xlabel("Frequency (GHz)")
-end
-
-function lbllf()
-  ylabel("Frequency (GHz)")
-end
-
-function lblbp()
-  xlabel("Power (dBm)")
-end
-
-function lbllp()
-  ylabel("Power (dBm)")
-end
-
-function lblbt()
-  xlabel("Time (ns)")
-end
-
-function lbllt()
-  ylabel("Time (ns)")
-end
-
-function lbllz()
-  ylabel(L"\langle Z \rangle")
-end
-
-function lbllpdeg()
-  ylabel("Phase (deg)")
 end
 
 function annotate_plot(message, vals...; coords = [0.75, 0.9])
