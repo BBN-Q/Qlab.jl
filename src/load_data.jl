@@ -12,12 +12,12 @@ function load_data(filename::AbstractString)
 		version = read(attrs(f)["version"])[1]
 		@assert version == 2
 
-		#Some headers are malformed...
-		try
-			header = JSON.parse(read(f["header"])[1])
+		# Some headers are malformed...
+		header = try
+			JSON.parse(read(f["header"])[1])
 		catch
 			warn("Unable to parse header JSON structure")
-			header = Dict{String,Any}()
+			Dict{String,Any}()
 		end
 
 		nbrDataSets = read(attrs(f)["nbrDataSets"])[1]
