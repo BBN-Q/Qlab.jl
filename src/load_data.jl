@@ -61,7 +61,7 @@ Search file number filenum in folder datapath/subdir. Subdir default is current 
 function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
 	# optionally, search for filenum instead of filename
 	# search in a subdirectory with today's date, if not specified
-	searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
+	searchdir(path, fileid) = filter(x -> contains(splitext(x)[1],string(filenum)) && splitext(x)[2]==".h5", readdir(path))
 	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
 	load_data(filename)
 end
