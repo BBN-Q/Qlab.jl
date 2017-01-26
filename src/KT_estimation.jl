@@ -3,7 +3,7 @@ function hilbert(signal)
 	# in essense, we just want to set negative frequency components to zero
 	spectrum = fft(signal)
 	n = length(signal)
-	@compat midpoint = ceil(Int, n/2)
+	midpoint = ceil(Int, n/2)
 
 	kernel = zeros(n)
 	kernel[1] = 1
@@ -28,7 +28,7 @@ function KT_estimation(data, timeStep, order)
 	#Create the raw Hankel matrix
 	N = length(analyticSig)
 	K = order
-	@compat M = trunc(Integer, N/2)-1
+	M = trunc(Integer, N/2)-1
 	L = N-M+1
 	H = zeros(Complex128, L, M)
 	for ct = 1:M
@@ -48,7 +48,7 @@ function KT_estimation(data, timeStep, order)
 
 	#Reconstruct the data from the averaged anti-diagonals
 	cleanedData = zeros(Complex128, N)
-	@compat tmpMat = flipdim(Hbar,2)
+	tmpMat = flipdim(Hbar,2)
 	idx = -L+1
 	for ct = N:-1:1
 	    cleanedData[ct] = mean(diag(tmpMat,idx))
