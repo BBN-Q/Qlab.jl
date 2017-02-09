@@ -72,7 +72,7 @@ function fit_twofreq_ramsey(xpts, ypts, weights=[])
     end
     errors2 = estimate_errors(result2)
     # compute weighted least squares error, assuming weights = pointwise inverse variance
-    sq_err2 = ((model(xpts, result2.param) - ypts).^2).*weights
+    sq_err2 = ((model(xpts, result2.param) - ypts).^2).*(weights.^2)
 
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve2 = (xfine, model(xfine, result2.param))
@@ -88,7 +88,7 @@ function fit_twofreq_ramsey(xpts, ypts, weights=[])
     end
     errors1 = estimate_errors(result1)
     # compute weighted least squares error, assuming weights = pointwise inverse variance
-    sq_err1 = ((model1(xpts, result1.param) - ypts).^2).*weights
+    sq_err1 = ((model1(xpts, result1.param) - ypts).^2).*(weights.^2)
 
     fit_curve1 = (xfine, model1(xfine, result1.param))
 
