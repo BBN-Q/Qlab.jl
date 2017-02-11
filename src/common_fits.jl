@@ -43,13 +43,14 @@ function fit_ramsey(xpts, ypts)
 end
 
 """
-	fit_twofreq_ramsey(xpts, ypts, weights, compare=false, verbose=false)
+	fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
-Fit a two-frequency decaying cosine to Ramsey data, with optional weights.
-If `compare`, will compare the fit to a one-frequency Ramsey fit using
-a statistical F-test. If `verbose`, will print results of fits.
+Fit one- and two-frequency decaying cosine to Ramsey data, optionally
+taking variances into account, and report which should be used based
+on Akaike's Information Criterion (AIC). This assumes Gaussian
+statistics for each observation.
 """
-function fit_twofreq_ramsey(xpts, ypts, weights=[])
+function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
 		    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
     #Use KT estimation to get a guess for the fit
@@ -65,14 +66,14 @@ function fit_twofreq_ramsey(xpts, ypts, weights=[])
     phases = angle(amps)
     amps = abs(amps)
     p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2],phases[2], mean(ypts)]
-    if isempty(weights)
+    if isempty(yvars)
   	result2 = curve_fit(model, xpts, ypts, p_guess)
     else
-	result2 = curve_fit(model, xpts, ypts, weights, p_guess)
+	result2 = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
     end
     errors2 = estimate_errors(result2)
-    # compute weighted least squares error, assuming weights = pointwise inverse variance
-    sq_err2 = sum(((model(xpts, result2.param) - ypts).^2).*(weights.^2))
+    # compute weighted least squares error
+    sq_err2 = sum(((model(xpts, result2.param) - ypts).^2)./yvars)
 
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve2 = (xfine, model(xfine, result2.param))
@@ -81,14 +82,14 @@ function fit_twofreq_ramsey(xpts, ypts, weights=[])
     freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
     idx = indmax(abs(amps))
     p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)]
-    if isempty(weights)
+    if isempty(yvars)
 	result1 = curve_fit(model1, xpts, ypts, p_guess)
     else
-	result1 = curve_fit(model1, xpts, ypts, weights, p_guess)
+	result1 = curve_fit(model1, xpts, ypts, 1./sqrt(yvars), p_guess)
     end
     errors1 = estimate_errors(result1)
-    # compute weighted least squares error, assuming weights = pointwise inverse variance
-    sq_err1 = sum(((model1(xpts, result1.param) - ypts).^2).*(weights.^2))
+    # compute weighted least squares error
+    sq_err1 = sum(((model1(xpts, result1.param) - ypts).^2)./yvars)
 
     fit_curve1 = (xfine, model1(xfine, result1.param))
 
