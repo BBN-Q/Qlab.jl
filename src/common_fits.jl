@@ -31,6 +31,7 @@ function fit_ramsey(xpts, ypts)
 
 	# Use KT estimation to get a guess for the fit
 	freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
+        return freqs,Ts,amps
 	idx = indmax(abs(amps))
 
 	p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], mean(ypts)];
@@ -54,12 +55,10 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
 		    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
     #Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 3)
+    
+    #return freqs,Ts,amps
     inds = find(x->(x > 0), Ts)
-    if length(inds) < 2
-	@printf("KT Estimation for two frequency failed.\n")
-	return [], []
-    end
     freqs = freqs[inds]
     Ts = Ts[inds]
     amps = amps[inds]
@@ -77,10 +76,10 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve2 = (xfine, model(xfine, result2.param))
-    
+
     model1(t,p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
-    idx = indmax(abs(amps))
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 1)
+    idx = 1; # indmax(abs(amps))
     p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)]
     if isempty(yvars)
 	result1 = curve_fit(model1, xpts, ypts, p_guess)
@@ -94,14 +93,14 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     fit_curve1 = (xfine, model1(xfine, result1.param))
 
     # AIC computation
-    k1 = 3
-    k2 = 6 
+    k1 = 2*5
+    k2 = 2*9 
     corr(k,n) = (k+1)*(k+1)/(n-k-2)
     aicc(e,k,n) = 2 * k + e + corr(k,n)
 
     aic = aicc(sq_err2,k2,length(xpts)) - aicc(sq_err1,k1,length(xpts))
 
-    return (result1.param, errors1, fit_curve1), (result2.param, errors2, fit_curve2), aic > 0 ? 1 : 2
+    return (result1.param, sq_err1, errors1, fit_curve1), (result2.param, sq_err2, errors2, fit_curve2), aic > 0 ? 1 : 2, aic
 end
 
 function fit_sin(xpts, ypts)
