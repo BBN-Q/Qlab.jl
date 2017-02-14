@@ -21,26 +21,36 @@ function fit_line(xpts, ypts)
 end
 
 """
-	fit_ramsey(xpts, ypts, weights=[])
+	fit_ramsey(xpts, ypts, yvars=[])
 
 Fit data to a Ramsey decay of the form p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5],
 with optional weights for each point.
 """
-function fit_ramsey(xpts, ypts)
-	model(t, p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t) + p[4]
+function fit_ramsey(xpts, ypts, yvars=[])
+    model(t, p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
+    
+    # Use KT estimation to get a guess for the fit
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
 
-	# Use KT estimation to get a guess for the fit
-	freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
-        return freqs,Ts,amps
-	idx = indmax(abs(amps))
+    idx = indmax(abs(amps))
+    
+    p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)];
 
-	p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], mean(ypts)];
-
+    if isempty(yvars)
 	result = curve_fit(model, xpts, ypts, p_guess)
-	errors = estimate_errors(result)
-	xfine = linspace(xpts[1],xpts[end],1001)
-	fit_curve = (xfine, model(xfine, result.param))
-	return result.param[2:3], errors[2:3], fit_curve
+    else
+	result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
+    end
+    errors = estimate_errors(result)
+    sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
+
+    dof = length(xpts)-5
+    Nσ = sq_error/sqrt(2dof) - dof/sqrt(2dof)
+
+    xfine = linspace(xpts[1],xpts[end],1001)
+    fit_curve = (xfine, model(xfine, result.param))
+
+    return result.param[2:3], sq_error, Nσ, errors[2:3], fit_curve
 end
 
 """
@@ -55,24 +65,28 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
 		    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
     #Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 3)
+    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
     
-    #return freqs,Ts,amps
-    inds = find(x->(x > 0), Ts)
-    freqs = freqs[inds]
-    Ts = Ts[inds]
-    amps = amps[inds]
+    
+    #inds = find(x->(x > 0), Ts)
+    #freqs = freqs[inds]
+    #Ts = Ts[inds]
+    #amps = amps[inds]
     phases = angle(amps)
     amps = abs(amps)
-    p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2],phases[2], mean(ypts)]
+    p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
+
     if isempty(yvars)
   	result2 = curve_fit(model, xpts, ypts, p_guess)
+        sq_err2 = sum((model(xpts, result2.param) - ypts).^2)
     else
 	result2 = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
+        sq_err2 = sum(((model(xpts, result2.param) - ypts).^2)./yvars)
     end
     errors2 = estimate_errors(result2)
-    # compute weighted least squares error
-    sq_err2 = sum(((model(xpts, result2.param) - ypts).^2)./yvars)
+    # compute weighted least squares error, and badness of fit
+    dof2 = length(xpts)-9
+    Nσ2 = sq_err2/sqrt(2dof2) - dof2/sqrt(2dof2)
 
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve2 = (xfine, model(xfine, result2.param))
@@ -83,24 +97,27 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)]
     if isempty(yvars)
 	result1 = curve_fit(model1, xpts, ypts, p_guess)
+        sq_err1 = sum((model1(xpts, result1.param) - ypts).^2)
     else
 	result1 = curve_fit(model1, xpts, ypts, 1./sqrt(yvars), p_guess)
+        sq_err1 = sum(((model1(xpts, result1.param) - ypts).^2)./yvars)
     end
     errors1 = estimate_errors(result1)
     # compute weighted least squares error
-    sq_err1 = sum(((model1(xpts, result1.param) - ypts).^2)./yvars)
+    dof1 = length(xpts)-5
+    Nσ1 = sq_err1/sqrt(2dof1) - dof1/sqrt(2dof1)
 
     fit_curve1 = (xfine, model1(xfine, result1.param))
 
     # AIC computation
-    k1 = 2*5
-    k2 = 2*9 
+    k1 = 5
+    k2 = 9 
     corr(k,n) = (k+1)*(k+1)/(n-k-2)
     aicc(e,k,n) = 2 * k + e + corr(k,n)
 
     aic = aicc(sq_err2,k2,length(xpts)) - aicc(sq_err1,k1,length(xpts))
 
-    return (result1.param, sq_err1, errors1, fit_curve1), (result2.param, sq_err2, errors2, fit_curve2), aic > 0 ? 1 : 2, aic
+    return (result1.param, sq_err1, Nσ1, errors1, fit_curve1), (result2.param, sq_err2, Nσ2, errors2, fit_curve2), aic > 0 ? 1 : 2, aic
 end
 
 function fit_sin(xpts, ypts)
