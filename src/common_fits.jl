@@ -21,25 +21,23 @@ function fit_line(xpts, ypts)
 end
 
 """
-	fit_ramsey(xpts, ypts, yvars=[])
+        fit_ramsey(xpts, ypts, yvars=[])
 
 Fit data to a Ramsey decay of the form p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5],
 with optional weights for each point.
 """
 function fit_ramsey(xpts, ypts, yvars=[])
     model(t, p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
-    
-    # Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
 
-    idx = indmax(abs(amps))
-    
-    p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)];
+    # Use KT estimation to get a guess for the fit
+    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 1)
+
+    p_guess = [abs(amps[1]), Ts[1], freqs[1], angle(amps[1]), mean(ypts)];
 
     if isempty(yvars)
-	result = curve_fit(model, xpts, ypts, p_guess)
+        result = curve_fit(model, xpts, ypts, p_guess)
     else
-	result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
+        result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
     end
     errors = estimate_errors(result)
     sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
@@ -54,7 +52,7 @@ function fit_ramsey(xpts, ypts, yvars=[])
 end
 
 """
-	fit_twofreq_ramsey(xpts, ypts, yvars=[])
+        fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
 Fit one- and two-frequency decaying cosine to Ramsey data, optionally
 taking variances into account, and report which should be used based
@@ -63,47 +61,48 @@ statistics for each observation.
 """
 function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
-		    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
+                    p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
     #Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
-    
-    
-    #inds = find(x->(x > 0), Ts)
-    #freqs = freqs[inds]
-    #Ts = Ts[inds]
-    #amps = amps[inds]
+    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 2)
+
     phases = angle(amps)
     amps = abs(amps)
     p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
 
     if isempty(yvars)
-  	result2 = curve_fit(model, xpts, ypts, p_guess)
+        result2 = curve_fit(model, xpts, ypts, p_guess)
         sq_err2 = sum((model(xpts, result2.param) - ypts).^2)
     else
-	result2 = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
+        result2 = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
         sq_err2 = sum(((model(xpts, result2.param) - ypts).^2)./yvars)
     end
     errors2 = estimate_errors(result2)
-    # compute weighted least squares error, and badness of fit
+    # Compute badness of fit:
+    # Under the null hypothesis (that the model is valid and that the observations
+    # do indeed have Gaussian statistics), the mean squared error is χ² distributed
+    # with `dof2` degrees of freedom. We can quantify badness-of-fit in terms of how
+    # far the observed MSE is from the expected value, in units of σ = 2dof (the expected
+    # standard deviation for the χ² distribution)
     dof2 = length(xpts)-9
     Nσ2 = sq_err2/sqrt(2dof2) - dof2/sqrt(2dof2)
 
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve2 = (xfine, model(xfine, result2.param))
 
+    # Now do 1 freq fit for comparisson TODO: just call fit Ramsey
     model1(t,p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
-    freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 1)
-    idx = 1; # indmax(abs(amps))
-    p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], angle(amps[idx]), mean(ypts)]
+    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 1)
+
+    p_guess = [abs(amps[1]), Ts[1], freqs[1], angle(amps[1]), mean(ypts)]
     if isempty(yvars)
-	result1 = curve_fit(model1, xpts, ypts, p_guess)
+        result1 = curve_fit(model1, xpts, ypts, p_guess)
         sq_err1 = sum((model1(xpts, result1.param) - ypts).^2)
     else
-	result1 = curve_fit(model1, xpts, ypts, 1./sqrt(yvars), p_guess)
+        result1 = curve_fit(model1, xpts, ypts, 1./sqrt(yvars), p_guess)
         sq_err1 = sum(((model1(xpts, result1.param) - ypts).^2)./yvars)
     end
     errors1 = estimate_errors(result1)
-    # compute weighted least squares error
+    # Compute badness of fit for this model
     dof1 = length(xpts)-5
     Nσ1 = sq_err1/sqrt(2dof1) - dof1/sqrt(2dof1)
 
