@@ -20,6 +20,14 @@ function fit_line(xpts, ypts)
   return result.param, errors, fit_curve
 end
 
+immutable FitResult
+    fit_params::Vector{Float64}
+    sq_errror::Float64
+    Nσ::Float64
+    errors::Vector{Float64}
+    fit_curve::Function
+end
+
 """
         fit_ramsey(xpts, ypts, yvars=[])
 
@@ -48,7 +56,7 @@ function fit_ramsey(xpts, ypts, yvars=[])
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve = (xfine, model(xfine, result.param))
 
-    return result.param[2:3], sq_error, Nσ, errors[2:3], fit_curve
+    return FitResult( result.param, sq_error, Nσ, errors, x->model(x,result.param) )
 end
 
 """
@@ -60,7 +68,7 @@ on Akaike's Information Criterion (AIC). This assumes Gaussian
 statistics for each observation.
 """
 function fit_twofreq_ramsey(xpts, ypts, yvars=[])
-    model(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
+    model2(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
                     p[5] * exp(-t ./ p[6]) .* cos(2π * p[7] .*t + p[8]) + p[9] )
     #Use KT estimation to get a guess for the fit
     freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 2)
@@ -70,11 +78,11 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
 
     if isempty(yvars)
-        result2 = curve_fit(model, xpts, ypts, p_guess)
-        sq_err2 = sum((model(xpts, result2.param) - ypts).^2)
+        result2 = curve_fit(model2, xpts, ypts, p_guess)
+        sq_err2 = sum((model2(xpts, result2.param) - ypts).^2)
     else
-        result2 = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
-        sq_err2 = sum(((model(xpts, result2.param) - ypts).^2)./yvars)
+        result2 = curve_fit(model2, xpts, ypts, 1./sqrt(yvars), p_guess)
+        sq_err2 = sum(((model2(xpts, result2.param) - ypts).^2)./yvars)
     end
     errors2 = estimate_errors(result2)
     # Compute badness of fit:
@@ -84,10 +92,7 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     # far the observed MSE is from the expected value, in units of σ = 2dof (the expected
     # standard deviation for the χ² distribution)
     dof2 = length(xpts)-9
-    Nσ2 = sq_err2/sqrt(2dof2) - dof2/sqrt(2dof2)
-
-    xfine = linspace(xpts[1],xpts[end],1001)
-    fit_curve2 = (xfine, model(xfine, result2.param))
+    Nσ2 = (sq_err2 - dof2)/sqrt(2dof2)
 
     # Now do 1 freq fit for comparisson TODO: just call fit Ramsey
     model1(t,p) = p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5]
@@ -104,9 +109,7 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     errors1 = estimate_errors(result1)
     # Compute badness of fit for this model
     dof1 = length(xpts)-5
-    Nσ1 = sq_err1/sqrt(2dof1) - dof1/sqrt(2dof1)
-
-    fit_curve1 = (xfine, model1(xfine, result1.param))
+    Nσ1 = (sq_err1 - dof1)/sqrt(2dof1)
 
     # AIC computation
     k1 = 5
@@ -116,7 +119,10 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
     aic = aicc(sq_err2,k2,length(xpts)) - aicc(sq_err1,k1,length(xpts))
 
-    return (result1.param, sq_err1, Nσ1, errors1, fit_curve1), (result2.param, sq_err2, Nσ2, errors2, fit_curve2), aic > 0 ? 1 : 2, aic
+    return [ FitResult( result1.param, sq_error1, Nσ1, errors1, x->model1(x,result1.param) ),
+             FitResult( result2.param, sq_error2, Nσ2, errors2, x->model2(x,result2.param) )],
+           (aic > 0) ? 1 : 2, 
+           aic
 end
 
 function fit_sin(xpts, ypts)
