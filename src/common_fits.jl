@@ -1,4 +1,4 @@
-using LsqFit, Distributions
+using LsqFit
 
 function fit_t1(xpts, ypts)
 	model(t, p) = p[1]*exp(-t ./ p[2]) + p[3]
