@@ -20,18 +20,29 @@ function fit_line(xpts, ypts)
   return result.param, errors, fit_curve
 end
 
+
 immutable FitResult
-    fit_params::Vector{Float64}
+    fit_params::Dict{String,Float64}
     sq_errror::Float64
     Nσ::Float64
-    errors::Vector{Float64}
+    errors::Dict{String,Float64}
     fit_curve::Function
+    model_str::String
 end
+
+fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
+
+fit_dict2(p) = Dict("a₁"=>p[1], "T₁"=>p[2], "f₁"=>p[3], "ϕ₁"=>p[4],
+                    "a₂"=>p[5], "T₂"=>p[6], "f₂"=>p[7], "ϕ₂"=>p[8],
+                    "b"=>p[9])
 
 """
         fit_ramsey(xpts, ypts, yvars=[])
 
-Fit data to a Ramsey decay of the form p[1]*exp(-t ./ p[2]).*cos(2π*p[3] .* t + p[4]) + p[5],
+Fit data to a Ramsey decay of the form 
+
+    a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b
+
 with optional weights for each point.
 """
 function fit_ramsey(xpts, ypts, yvars=[])
@@ -56,16 +67,28 @@ function fit_ramsey(xpts, ypts, yvars=[])
     xfine = linspace(xpts[1],xpts[end],1001)
     fit_curve = (xfine, model(xfine, result.param))
 
-    return FitResult( result.param, sq_error, Nσ, errors, x->model(x,result.param) )
+    return FitResult( fit_dict1(result.param),
+                      sq_error,
+                      Nσ,
+                      fit_dict1(errors),
+                      x->model(x,result.param),
+                      "a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b")
 end
 
 """
         fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
-Fit one- and two-frequency decaying cosine to Ramsey data, optionally
-taking variances into account, and report which should be used based
-on Akaike's Information Criterion (AIC). This assumes Gaussian
-statistics for each observation.
+Fit the Ramsey data to a one-frequency model
+
+    a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b
+
+or a two-frequency model
+
+    a₁*exp(-t ./ T₁).*cos(2πf₁ .* t + ϕ₁) + a₂*exp(-t ./ T₂).*cos(2πf₂ .* t + ϕ₂) + b
+
+optionally taking variances into account, and report which should be
+used based on Akaike's Information Criterion (AIC). This assumes
+Gaussian statistics for each observation.
 """
 function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     model2(t, p) = ( p[1] * exp(-t ./ p[2]) .* cos(2π * p[3] .*t + p[4]) +
