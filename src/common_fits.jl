@@ -39,7 +39,7 @@ fit_dict2(p) = Dict("a₁"=>p[1], "T₁"=>p[2], "f₁"=>p[3], "ϕ₁"=>p[4],
 """
         fit_ramsey(xpts, ypts, yvars=[])
 
-Fit data to a Ramsey decay of the form 
+Fit data to a Ramsey decay of the form
 
     a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b
 
@@ -136,15 +136,27 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
     # AIC computation
     k1 = 5
-    k2 = 9 
+    k2 = 9
     corr(k,n) = (k+1)*(k+1)/(n-k-2)
     aicc(e,k,n) = 2 * k + e + corr(k,n)
 
     aic = aicc(sq_err2,k2,length(xpts)) - aicc(sq_err1,k1,length(xpts))
 
-    return [ FitResult( result1.param, sq_error1, Nσ1, errors1, x->model1(x,result1.param) ),
-             FitResult( result2.param, sq_error2, Nσ2, errors2, x->model2(x,result2.param) )],
-           (aic > 0) ? 1 : 2, 
+    return [ FitResult( fit_dict1(result1.param),
+                        sq_err1,
+                        Nσ1,
+                        fit_dict1(errors1),
+                        x->model1(x,result1.param),
+                        "a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b"
+                        ),
+             FitResult( fit_dict2(result2.param),
+                        sq_err2,
+                        Nσ2,
+                        fit_dict2(errors2),
+                        x->model2(x,result2.param),
+                        "a₁*exp(-t ./ T₁).*cos(2πf₁ .* t + ϕ₁) + a₂*exp(-t ./ T₂).*cos(2πf₂ .* t + ϕ₂) + b"
+                        )],
+           (aic > 0) ? 1 : 2,
            aic
 end
 
