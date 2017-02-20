@@ -23,7 +23,7 @@ end
 
 immutable FitResult
     fit_params::Dict{String,Float64}
-    sq_errror::Float64
+    sq_error::Float64
     Nσ::Float64
     errors::Dict{String,Float64}
     fit_curve::Function
