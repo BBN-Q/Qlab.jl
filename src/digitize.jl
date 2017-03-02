@@ -62,7 +62,7 @@ end
 Digitize readout voltages in a n x n grid, using the estimated
 distributions for the computational states k00, k01, 01, k11
 """
-function digitize_2D(k00,k01,k10,k11,n)
+function digitize_2D(k00,k01,k10,k11,n; thresholds=(NaN, NaN))
   xmin = minimum([k00.x; k01.x; k10.x; k11.x])
   xmax = maximum([k00.x; k01.x; k10.x; k11.x])
   ymin = minimum([k00.y; k01.y; k10.y; k11.y])
@@ -81,9 +81,15 @@ function digitize_2D(k00,k01,k10,k11,n)
       for m=1:4
         x_ind[m] = max(1,searchsortedlast(distrs[m].x, xpoints[xi]))
       end
-      highest_kde_ind =  indmax([distrs[1].density[x_ind[1],y_ind[1]] distrs[2].density[x_ind[2],y_ind[2]] distrs[3].density[x_ind[3],y_ind[3]] distrs[4].density[x_ind[4],y_ind[4]]])
-      if distrs[highest_kde_ind].density[x_ind[highest_kde_ind],y_ind[highest_kde_ind]]>0
-        assignmat[xi, yi] = highest_kde_ind
+      if any(isnan, thresholds)
+        highest_kde_ind =  indmax([distrs[1].density[x_ind[1],y_ind[1]] distrs[2].density[x_ind[2],y_ind[2]] distrs[3].density[x_ind[3],y_ind[3]] distrs[4].density[x_ind[4],y_ind[4]]])
+        if distrs[highest_kde_ind].density[x_ind[highest_kde_ind],y_ind[highest_kde_ind]]>0
+          assignmat[xi, yi] = highest_kde_ind
+        end
+      else
+        assign_a1 = mean(k00.density) > mean(k01.density)? Int(xpoints[xi] < thresholds[1]):Int(xpoints[xi] > thresholds[1])
+        assign_a2 = mean(k00.density) > mean(k10.density)? Int(ypoints[yi] < thresholds[2]):Int(ypoints[yi] > thresholds[2])
+        assignmat[xi, yi] = assign_a1 + 2*assign_a2 + 1
       end
     end
   end
@@ -163,8 +169,9 @@ Wrapper to load and digitize 2-q single-shot data.
 Data format: single-shot alternating between 00, 01, 10, 11 in channels {ch_a1, ch_a2}
 grid_dim: number of bins / qubit
 nn_quorum: number of votes required for the nearest neighbors to flip a value in the assignment map
+indep_thrs: if true, the thresholds are chosen independently of the other qubit
 """
-function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_dim=51, nn_quorum = 6, showPlot = false)
+function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_dim=51, nn_quorum = 6, showPlot = false, indep_thrs = false)
   data=load_data(datapath, filenum, datestr)[2];
   a1 = real(data[ch_a1]["data"])
   a2 = real(data[ch_a2]["data"])
@@ -172,8 +179,16 @@ function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_
   kde_01 = kde((a1[2:4:end],a2[2:4:end]))
   kde_10 = kde((a1[3:4:end],a2[3:4:end]))
   kde_11 = kde((a1[4:4:end],a2[4:4:end]))
-  xpts,ypts,assign_mat = digitize_2D(kde_00,kde_01,kde_10,kde_11, grid_dim)
-  smoothed_mat = smooth_2D_map(assign_mat; dig_thr = nn_quorum);
+  if indep_thrs
+    #pick thresholds from single-excitation distributions
+    thresholds = (digitize([], a1[1:4:end], a1[2:4:end])[4], digitize([], a2[1:4:end], a2[3:4:end])[4])
+    println(thresholds)
+  else
+    #2D thresholds will be computed next
+    thresholds = (NaN, NaN)
+  end
+  xpts,ypts,assign_mat = digitize_2D(kde_00,kde_01,kde_10,kde_11, grid_dim; thresholds = thresholds)
+  smoothed_mat = smooth_2D_map(assign_mat; dig_thr = nn_quorum)
   fidelity_mat = get_fidelities_2D([kde_00 kde_01 kde_10 kde_11], xpts, ypts, smoothed_mat)
   if showPlot
     fig = figure("pyplot_surfaceplot",figsize=(5,4))

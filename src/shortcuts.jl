@@ -41,7 +41,8 @@ function get_fidelity(shots_0, shots_1, nbins = 51, showPlot = false)
     xlabel("Homodyne voltage (a.u.)")
   end
   fidelity = 1-(1-maximum(abs(cdf_0-cdf_1)))/2
-  return fidelity
+  threshold = bins[indmax(abs(cdf_0-cdf_1))]
+  return fidelity, threshold
 end
 
 """
