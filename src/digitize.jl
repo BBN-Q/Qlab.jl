@@ -21,6 +21,8 @@ accurate. The output is a `(ddata, pe0, pe1)`, where
 
   `pe1`   -- probability of error when preparing a 1
 
+  `thr`   -- chosen threshold
+
   The `:equal` mode of operation tries to equalize the conditional error probabilities for the
 two possible outcomes, and it is generally less sensitive to statistical fluctuations. The
 `:max` mode of operation tries to minimize the sum of error probabilities, but is is much more
@@ -28,17 +30,19 @@ sensitive to statistical fluctuations, and is therefore not recommended unless t
 size for the calibrations is very large.
 
 """
-function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :equal)
+function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :equal, thr = NaN)
     minA, maxA = extrema([quantile(cal0,[.25,.75]); quantile(cal1,[.25,.75])])
     Arange = linspace(minA,maxA,1000)
-    thr = if mode==:max
-            Arange[indmax(abs(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))] 
-          elseif mode==:equal
-            Arange[indmin(abs(ecdf(cal0)(Arange)-1+ecdf(cal1)(Arange)))]
-          else
-            error("Unsupported digitization mode")
-          end
-    
+    if isnan(thr)
+      thr = if mode==:max
+              Arange[indmax(abs(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))]
+            elseif mode==:equal
+              Arange[indmin(abs(ecdf(cal0)(Arange)-1+ecdf(cal1)(Arange)))]
+            else
+              error("Unsupported digitization mode")
+            end
+    end
+
     ddata = data .> thr
     dcal0 = cal0 .> thr
     dcal1 = cal1 .> thr
@@ -48,8 +52,10 @@ function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :eq
         dcal0 = ~dcal0
         dcal1 = ~dcal1
     end
-        
-    return round(Int,ddata), sum(dcal0)/length(cal0), 1.0-sum(dcal1)/length(cal1)
+
+    return round(Int,ddata), sum(dcal0)/length(cal0), 1.0-sum(dcal1)/length(cal1), thr
+end
+
 """
     digitize_2D(k00, k01, k10, k11, n)
 
