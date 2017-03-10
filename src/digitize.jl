@@ -57,12 +57,30 @@ function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :eq
 end
 
 """
-    digitize_2D(k00, k01, k10, k11, n)
+    digitize_2D(data_A, data_B, cal00, cal01, cal10, cal11; n)
+
+Digitize 2-qubit readout voltages data_A, data_B using the calibrations cal00, cal01, cal10, cal11.
+Voltages are binned in a n x n grid
+"""
+function digitize_2D(data_A, data_B, cal00, cal01, cal10, cal11; n=51)
+  k00 = kde((cal00[1],cal00[2]))
+  k01 = kde((cal01[1],cal01[2]))
+  k10 = kde((cal10[1],cal10[2]))
+  k11 = kde((cal11[1],cal11[2]))
+  xpoints, ypoints, dig_map = map_2D(k00,k01,k10,k11, n)
+  # assign each coordinate (data_A, data_B) to a 2-bit value using dig_map
+  dig_data = [dig_map[max(1,searchsortedlast(xpoints, d_A)), max(1, searchsortedlast(ypoints, d_B))] for (d_A, d_B) in zip(data_A, data_B)]
+  return dig_data
+end
+
+
+"""
+    map_2D(k00, k01, k10, k11, n)
 
 Digitize readout voltages in a n x n grid, using the estimated
 distributions for the computational states k00, k01, 01, k11
 """
-function digitize_2D(k00,k01,k10,k11,n; thresholds=(NaN, NaN))
+function map_2D(k00, k01, k10, k11, n; thresholds=(NaN, NaN))
   xmin = minimum([k00.x; k01.x; k10.x; k11.x])
   xmax = maximum([k00.x; k01.x; k10.x; k11.x])
   ymin = minimum([k00.y; k01.y; k10.y; k11.y])
@@ -129,7 +147,7 @@ end
 """
     get_fidelities_2D(distrs, xpoints, ypoints, digmat)
 
-Calculate assignment fidelities in a 2-qubit space
+Return readout assignment probabilities in a 2-qubit space
 distrs: distributions for the 4 computational states
 digmat: digitization map with grid [xpoints; ypoints]
 """
@@ -175,21 +193,25 @@ function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_
   data=load_data(datapath, filenum, datestr)[2];
   a1 = real(data[ch_a1]["data"])
   a2 = real(data[ch_a2]["data"])
-  kde_00 = kde((a1[1:4:end],a2[1:4:end]))
-  kde_01 = kde((a1[2:4:end],a2[2:4:end]))
-  kde_10 = kde((a1[3:4:end],a2[3:4:end]))
-  kde_11 = kde((a1[4:4:end],a2[4:4:end]))
+
   if indep_thrs
     #pick thresholds from single-excitation distributions
     thresholds = (digitize([], a1[1:4:end], a1[2:4:end])[4], digitize([], a2[1:4:end], a2[3:4:end])[4])
-    println(thresholds)
   else
     #2D thresholds will be computed next
     thresholds = (NaN, NaN)
   end
-  xpts,ypts,assign_mat = digitize_2D(kde_00,kde_01,kde_10,kde_11, grid_dim; thresholds = thresholds)
+  cal00 = (a1[1:4:end],a2[1:4:end])
+  cal01 = (a1[2:4:end],a2[2:4:end])
+  cal10 = (a1[3:4:end],a2[3:4:end])
+  cal11 = (a1[4:4:end],a2[4:4:end])
+  k00 = kde((cal00[1],cal00[2]))
+  k01 = kde((cal01[1],cal01[2]))
+  k10 = kde((cal10[1],cal10[2]))
+  k11 = kde((cal11[1],cal11[2]))
+  xpts,ypts,assign_mat = map_2D(k00, k01, k10, k11, grid_dim; thresholds = thresholds)
   smoothed_mat = smooth_2D_map(assign_mat; dig_thr = nn_quorum)
-  fidelity_mat = get_fidelities_2D([kde_00 kde_01 kde_10 kde_11], xpts, ypts, smoothed_mat)
+  fidelity_mat = get_fidelities_2D([k00 k01 k10 k11], xpts, ypts, smoothed_mat)
   if showPlot
     fig = figure("pyplot_surfaceplot",figsize=(5,4))
     xpoints = repmat(xpts,1,length(ypts))
