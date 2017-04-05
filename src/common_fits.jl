@@ -206,7 +206,7 @@ function analyzeRB(ypts, seqlengths)
 
 	numRepeats = length(ypts)/length(seqlengths);
 
-	xpts = seqlengths[1 + floor((0:length(ypts)-1)./numRepeats)];
+	xpts = seqlengths[1 + floor(Int64,(0:length(ypts)-1)./numRepeats)];
 
 	fidelity = .5 * (1 - ypts[:]);
 
