@@ -204,9 +204,9 @@ function analyzeRB(ypts, seqlengths)
 	#analyzeRB Analyzes a randomized benchmarking experiment
 	#seqlengths, example: [4,8,16,32,64,128,256,384,512,640,768,896,1024,1152,1280,1408,1536,1664]
 
-	numRepeats = length(ypts)/length(seqlengths);
+	num_repeats = floor(UInt, length(ypts)/length(seqlengths));
 
-  xpts = seqlengths[1 + floor(Int64, (0:length(ypts)-1) .÷ numRepeats)];
+	xpts = seqlengths[1 + (0:length(ypts)-1) .÷ num_repeats];
 
 	fidelity = .5 * (1 - ypts[:]);
 
