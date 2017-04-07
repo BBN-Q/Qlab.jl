@@ -60,7 +60,7 @@ function initial_guess(xpts, ypts)
   Lorentizian function parameters.
   """
   # find offset
-  if (maximum(ypts) - median(ypts)) <= (minimum(ypts) - median(ypts))
+  if abs(maximum(ypts) - median(ypts)) <= abs(minimum(ypts) - median(ypts))
         e = median(ypts)
         idx = indmin(ypts)
         direction = -1
@@ -71,7 +71,7 @@ function initial_guess(xpts, ypts)
   end
   # center frequency
   b = xpts[idx]
-  half = abs(median(ypts) - ypts[idx]) / 2.
+  half = direction * abs(median(ypts) - ypts[idx]) / 2.
   if direction == 1
     idx_l = findfirst(x -> x > half, ypts)
     idx_r = findlast(x -> x > half, ypts)
@@ -80,7 +80,7 @@ function initial_guess(xpts, ypts)
     idx_r = findlast(x -> x < half, ypts)
   end
   c = abs(xpts[idx_l] - xpts[idx_r])
-  a =  c^2 * abs(ypts[idx] - e) / 4
+  a =  direction * c^2 * abs(ypts[idx] - e) / 4
   # slope of linear skew
   d = (ypts[end] - ypts[1])/(xpts[end] - xpts[1])
   return [a, b, c, d, e];
