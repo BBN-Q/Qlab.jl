@@ -39,6 +39,26 @@ end
 
 #Fitting to the resonance circle of a quarter-wave resonator
 
+function fit_resonance_circle(freqs, data)
+  """Fit a resonance circle."""
+  @assert length(freqs) == length(data) "Frequency and Data vectors must have same length!"
+  @assert length(data) > 20 "Too few points."
+
+function calibrate_resonance_circle(freq, data)
+
+function fit_delay(freq, data)
+  """Fit overall phase delay imposed by system transfer function.
+
+  Args:
+    freq: Frequency data.
+    data: Complex S21 data.
+  Returns:
+    τ: Linear phase delay
+  """
+  ϕ = unwrap(angle(data))
+
+  function delay_model
+
 function lorentzian_resonance(p, f)
   """
   Return a resonance model in S21 amplitude over the range [x] and with
