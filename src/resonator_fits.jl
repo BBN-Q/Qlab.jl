@@ -1,5 +1,7 @@
 using LsqFit
 
+#Fitting a biased Lorentzian to amplitude data.
+
 function bias_lorentzian(x, p)
   """
   Returns a five parameter, biased Lorentizian function
@@ -35,6 +37,7 @@ function fit_biased_lorentzian(freq, data)
   return fit, fit_function
 end
 
+#Fitting to the resonance circle of a quarter-wave resonator
 
 function lorentzian_resonance(p, f)
   """
@@ -110,4 +113,39 @@ function simulate_resonance(kwargs...)
   data = data.*exp(-1im*rand_phase).*(1+rand_amp);
 
   return freqs, data, [f0, ϕ, Q, Qc, τ, α, A]
+end
+
+function fit_circle(x, y)
+  """Algebraic fit of (x,y) points to a circle. See:
+      N. Chernov and C. J. Lesort, Least Squares Fitting of Circles,
+        Journal of Mathematical Imaging and Vision, 23: 239-252, 2005.
+
+      Args:
+        x, y: X and Y points to be fitted to a circle.
+      Returns:
+        R: Circle radius.
+        xc: x-coordinate of circle center.
+        yc: y-coordinate of circle center.
+  """
+  @assert length(x) == length(y) "X and Y vector lengths must be equal for circle fit!"
+  n = length(x)
+  z = x.^2 + y.^2
+  Mx = sum(x)
+  My = sum(y)
+  Mz = sum(z)
+  Mxx = sum(x.^2)
+  Myy = sum(y.^2)
+  Mzz = sum(z.^2)
+  Mxy = sum(x .* y)
+  Mxz = sum(x .* z)
+  Myz = sum(y .* z)
+  M = [Mzz Mxz Myz Mz; Mxz Mxx Mxy Mx; Myz Mxy Myy My; Mz Mx My n];
+  B = [0 0 0 -2; 0 1 0 0; 0 0 1 0; -2 0 0 0]
+  D, V = eig(M, B)
+  D[D .< eps()] = NaN
+  ev = V[:, indmin(D)]
+  xc = -ev[2]/2/ev[1]
+  yc = -ev[3]/2/ev[1]
+  R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4])/2./abs(ev[1])
+  return R, xc, yc
 end
