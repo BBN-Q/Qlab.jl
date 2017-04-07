@@ -1,17 +1,40 @@
 using LsqFit
 
-function bias_lorentz(p, x)
+function bias_lorentzian(x, p)
   """
   Returns a five parameter, biased Lorentizian function
 
-  p : a vector of length 5 with function params --
-            (amplitude, frequency, line width, linear skew, offset)
-  x      : domain of the returned function
+  Args:
+    x: domain of the returned function
+    p: a vector of length 5 with function params --
+        (amplitude, frequency, line width, linear skew, offset)
+  Returns:
+      The computed function.
 
   See appendix E.4 of Gao\'s thesis (2008)
   """
   return p[1] ./ ((x - p[2]).^2 + (p[3]/2)^2) + p[4]*(x - p[2]) + p[5];
 end
+
+function fit_biased_lorentzian(freq, data)
+  """
+  Fit frequency-amplitude data to a skewed Lorentzian using nonlinear least-squares.
+
+  Args:
+    freq: Frequency data.
+    data: Data to be fitted.
+    alpha: Confidence limit for error calculation. Default 0.95.
+  Returns:
+    fit: LsqFitResult object.
+    fit_function(x): Biased Lorentzian at fitted parameters.
+  """
+  p0 = initial_guess(freq, data)
+  fit = curve_fit(bias_lorentzian, freq, data, p0)
+  errors = estimate_errors(fit, 0.95)
+  fit_function(x) = bias_lorentzian(x, fit.param)
+  return fit, fit_function
+end
+
 
 function lorentzian_resonance(p, f)
   """
@@ -36,41 +59,30 @@ function initial_guess(xpts, ypts)
   Returns a length five vector with an initial guess of
   Lorentizian function parameters.
   """
-
-  xpts = abs(xpts);
-  ypts = abs(ypts);
-  direction = 1;
-
   # find offset
-  if maximum(ypts) - median(ypts) <= abs(minimum(ypts) - median(ypts))
-        e = minimum(ypts);
-        idx = indmax(ypts);
-        direction = -1;
+  if (maximum(ypts) - median(ypts)) <= (minimum(ypts) - median(ypts))
+        e = median(ypts)
+        idx = indmin(ypts)
+        direction = -1
     else
-        e = maximum(ypts);
-        idx = indmin(ypts);
+        e = median(ypts)
+        idx = indmax(ypts)
+        direction = 1
   end
-
   # center frequency
   b = xpts[idx]
-
-  # slope of linear skew
-  d = (ypts[end] - ypts[1])/(xpts[end] - xpts[1]);
-
-  # line width
-  half = abs((median(ypts) + ypts[idx])) / 2;
-  if maximum(ypts) - median(ypts) <= abs(minimum(ypts) - median(ypts))
-        idx_left = findfirst(x -> x > half, ypts)
-        idx_right = findlast(x -> x > half, ypts)
-    else
-        idx_left = findfirst(x -> x < half, ypts)
-        idx_right = findlast(x -> x < half, ypts)
+  half = abs(median(ypts) - ypts[idx]) / 2.
+  if direction == 1
+    idx_l = findfirst(x -> x > half, ypts)
+    idx_r = findlast(x -> x > half, ypts)
+  else
+    idx_l = findfirst(x -> x < half, ypts)
+    idx_r = findlast(x -> x < half, ypts)
   end
-  c = abs(xpts[idx_left] - xpts[idx_right]);
-
-  # amplitude
-  a = direction * c^2 * (maximum(ypts) - minimum(ypts)) / 4;
-
+  c = abs(xpts[idx_l] - xpts[idx_r])
+  a =  c^2 * abs(ypts[idx] - e) / 4
+  # slope of linear skew
+  d = (ypts[end] - ypts[1])/(xpts[end] - xpts[1])
   return [a, b, c, d, e];
 end
 
