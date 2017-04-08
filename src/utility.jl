@@ -1,11 +1,11 @@
-function unwrap!{T <: AbstractFloat}(Θ::Array{T}; discont=π)
+function unwrap!{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   """Unwrap angles by changing deltas between values to 2π complement.
 
-  Unwrap radian phase Θ by changing absolute jumps greater than `discont` to
+  Unwrap radian phase ϕ by changing absolute jumps greater than `discont` to
   their 2π complement.
 
   Args:
-    Θ: Input array.
+    ϕ: Input array.
     discont: Maximum discontinuity between values. Optional, default is π.
 
   Returns:
@@ -14,15 +14,15 @@ function unwrap!{T <: AbstractFloat}(Θ::Array{T}; discont=π)
   See also:
     numpy.unwrap()
   """
-  Δ = diff(Θ)
+  Δ = diff(ϕ)
   Δmod = mod(Δ + π, 2 * π) - π
   Δmod[(Δmod .== π) & (Δ .> 0)] = π
-  Θcorr = Δmod - Δ
-  Θcorr[abs(Δ) .< discont] = 0
-  return Θ .+ vcat(0, cumsum(Θcorr))
+  ϕcorr = Δmod - Δ
+  ϕcorr[abs(Δ) .< discont] = 0
+  return ϕ .+ vcat(0, cumsum(ϕcorr))
 end
 
-function unwrap{T <: AbstractFloat}(Θ::Array{T}, args...; kwargs...)
+function unwrap{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   """In-place version of unwrap."""
-  unwrap!(copy(Θ), args...; kwargs...)
+  return unwrap!(copy(ϕ), discont=discont)
 end
