@@ -2,7 +2,6 @@ using LsqFit
 using Optim
 
 #Fitting a biased Lorentzian to amplitude data.
-
 function bias_lorentzian(x, p)
   """
   Returns a five parameter, biased Lorentizian function
@@ -70,8 +69,26 @@ function initial_guess(xpts, ypts)
   return [a, b, c, d, e];
 end
 
-#Fitting to the resonance circle of a quarter-wave resonator
+immutable CircleFitResult
+  """Container for the result of a circle fit.
+    f0: Resonator center frequency.
+    Qi: Resonator internal quality factor.
+    Qc: Resonator coupling quality factor.
+    ϕ: Impedance mismatch angle.
+    τ: System phase delay.
+    α: System gain angle.
+    A: System gain amplitude.
+  """
+  f0
+  Qi
+  Qc
+  ϕ
+  τ
+  α
+  A
+end
 
+#Fitting to the resonance circle of a quarter-wave resonator
 function fit_resonance_circle{T <: AbstractFloat}(freq::Array{T, 1}, data::Array{Complex{T}, 1})
   """
   Fits complex-valued data
@@ -80,11 +97,7 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Array{T, 1}, data::Array
     freq: Frequency data.
     data: Complex S21 data.
   Returns:
-    f0: Center frequency.
-    Qi: Internal quality factor.
-    Qc: Coupling quality factor.
-    ϕ: Phase mismatch.
-    fitfunc: Function of frequency and best fit parameters.
+    Result: The result of the fit.
   """
   @assert length(freq) == length(data) "Frequency and Data vectors must have same length!"
   @assert length(data) > 20 "Too few points."
@@ -94,13 +107,13 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Array{T, 1}, data::Array
 
   R, xc, yc = fit_circle(real(scaled_data), imag(scaled_data))
   ϕ = -asin(yc / R)
-  td = (real(scaled_data) - xc) + 1i*(imag(scaled_data) - yc)
-  f0, Qfit, _, fitfunc = fit_phase(freq, td)
+  td = (real(scaled_data) - xc) + 1im*(imag(scaled_data) - yc)
+  f0, Qfit, _ = fit_phase(freq, td)
   Qc = Qfit / (2. * R * exp(-1im * ϕ))
   Qi = 1./ (1./Qfit - real(1./Qc))
   Qc = abs(Qc)
 
-  return f0, Qi, Qc, ϕ, fitfunc
+  return CircleFitResult(f0, Qi, Qc, ϕ, -τ, -α, A)
 end
 
 function calibrate_resonance_circle(freq, data)
@@ -122,8 +135,8 @@ function calibrate_resonance_circle(freq, data)
   R, xc, yc = fit_circle(real(Sp), imag(Sp))
   Strans = (real(Sp) - xc) + 1im * (imag(Sp) - yc)
   #Calculate invariant ω → ∞ point
-  _, _, θ, _ = fit_phase(freq, Strans)
-  P = xc + R * cos(θ + π) + 1im * (yc + R * sin(Θ + π))
+  _, _, θ = fit_phase(freq, Strans)
+  P = xc + R * cos(θ + π) + 1im * (yc + R * sin(θ + π))
   A = abs(P)
   α = angle(P)
   return τ, α, A
@@ -145,8 +158,8 @@ function apply_calibration(τ, α, A, freq, data)
   data = data .* exp(-1im * 2 * π * τ * freq)
   rot = [cos(-α) -sin(-α); sin(-α) cos(-α)]
   scaled_data = zeros(Complex128, size(data))
-  for j = 1:length(A)
-    v = rot * [real(data[j]); imag(data([j]))]
+  for j = 1:length(data)
+    v = rot * [real(data[j]); imag(data[j])]
     scaled_data[j] = (v[1] + 1im * v[2]) / A
   end
   return scaled_data
@@ -161,7 +174,6 @@ function fit_phase(freq, data)
     f0: Center frequency.
     Q: Quality factor.
     Θ0: Offset phase angle.
-    fitfunc: Best fit phase funciton.
   """
   model(x, p) = p[1] + 2. * slope * atan(2 * p[2] *(1. - x / p[3]))
   ϕ = unwrap(angle(data))
@@ -186,7 +198,7 @@ function fit_phase(freq, data)
   Qguess = freq[idx]/abs(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
   fitfunc(x) = model(x, fit.param)
-  return fit.param[3], fit.param[2], fit.param[1], fitfunc
+  return fit.param[3], fit.param[2], fit.param[1]
 end
 
 function fit_delay(freq, data)
@@ -198,36 +210,32 @@ function fit_delay(freq, data)
   Returns:
     τ: Linear phase delay
   """
-  function delay_model(t::Float64)
-    data = data .* exp(-2. * π * 1im * freq * t)
+  function delay_model(x)
+    data = data .* exp(-2. * π * 1im * freq * x)
     R, xc, yc = fit_circle(real(data), imag(data))
     return sum(R.^2 - (real(data) - xc).^2 - (imag(data) - yc).^2)
   end
   ϕ = unwrap(angle(data))
   linfit(x,p) = p[1] + x * p[2]
   fit = curve_fit(linfit, cat(1, freq[1:9], freq[end-9:end]), cat(1, ϕ[1:9], ϕ[end-9:end]), [mean(ϕ), 0])
-  println(typeof(delay_model))
-  result = optimize(delay_model, fit.param[2] / (2. * π))
+  result = optimize(delay_model, -abs(fit.param[2]), abs(fit.param[2])) #would prefer 1D gradient descent
   return Optim.minimizer(result)
 end
 
 
-function lorentzian_resonance(p, f)
+function lorentzian_resonance(p::CircleFitResult, f)
   """
   Return a resonance model in S21 amplitude over the range [x] and with
   parameters [p].
 
   See appendix E of Gao 2008 p. 155 Eq E.1
   """
-  f0 = p[1]; # resonant frequency
-  ϕ  = p[2]; # angle offset in the complex plane due to mismatch
-  Q  = p[3]; # total quality factor
-  Qc = p[4]; # coupling quality facto
-  τ  = p[5]; # phase delay
-  α  = p[5]; # loss
-  A  = p[6]; # amplitude
+  Q = 1 ./ (1/p.Qi + real(1 ./ p.Qc*exp(1im*p.ϕ)));
+  return p.A*exp(1im*p.α).*exp(-2π*1im*f*p.τ).*(1 - (Q/abs(p.Qc))*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
+end
 
-  return A*exp(1im*α).*exp(-2π*1im*f*τ).*(1 - (Q/abs(Qc))*exp(1im*ϕ)./(1 + 2*1im*Q*(f/f0 - 1)));
+function lorentzian_resonance(p::Array, f)
+  return lorentzian_resonance(CircleFitResult(p[1], p[2], p[3], p[4], p[5], p[6]), f)
 end
 
 function simulate_resonance(kwargs...)
@@ -236,10 +244,9 @@ function simulate_resonance(kwargs...)
 
   Returns: xpts, ypts, curve_params
   """
-
   f0 = 6.5 + randn();
-  Qc = 10000 + randn()*2000;
-  Qi = 5e4;
+  Qc = 26000 + randn()*2000;
+  Qi = 1.3e5;
   τ = 1.74*π;
   ϕ = 2.1*π;
   Q = 1 ./ (1/Qi + real(1 ./ Qc*exp(1im*ϕ)));
@@ -247,13 +254,14 @@ function simulate_resonance(kwargs...)
   A = 0.73;
   df = f0/Q;
   freqs = linspace(f0 - 6*df, f0 + 6*df, 401);
-  data = lorentzian_resonance([f0, ϕ, Q, Qc, τ, α, A], freqs);
+  p = CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
+  data = lorentzian_resonance(p, freqs);
   # add some noise
   rand_phase = 2π*0.002*randn(length(freqs));
   rand_amp = 0.01*randn(length(freqs));
   data = data.*exp(-1im*rand_phase).*(1+rand_amp);
 
-  return freqs, data, [f0, ϕ, Q, Qc, τ, α, A]
+  return freqs, data, p
 end
 
 function fit_circle(x, y)
