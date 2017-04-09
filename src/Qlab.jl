@@ -8,10 +8,11 @@ module Qlab
 	include("comp_to_paulis.jl")
 	include("SavitskyGolay.jl")
 	include("read_records.jl")
-  include("digitize.jl")
+	include("digitize.jl")
 	include("common_fits.jl")
 	include("tomography.jl")
 	include("plotting.jl")
+	include("shortcuts.jl")
 	include("resonator_fits.jl")
 	include("utility.jl")
 end
