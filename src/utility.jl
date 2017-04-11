@@ -16,7 +16,7 @@ function unwrap!{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   """
   Δ = diff(ϕ)
   Δmod = mod(Δ + π, 2 * π) - π
-  Δmod[(Δmod .== π) & (Δ .> 0)] = π
+  Δmod[(Δmod .== -π) & (Δ .> 0)] = π
   ϕcorr = Δmod - Δ
   ϕcorr[abs(Δ) .< discont] = 0
   return ϕ .+ vcat(0, cumsum(ϕcorr))
