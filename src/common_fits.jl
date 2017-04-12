@@ -201,7 +201,7 @@ function fit_photon_ramsey(xpts, ypts, params)
 end
 
 """
-	analyzeRB(ypts, seqlengths; purity = False)
+	analyzeRB(ypts, seqlengths; purity=False)
 
 analyzeRB Analyzes a randomized benchmarking experiment
 
@@ -210,16 +210,17 @@ if purity = true, fit for incoherent errors. See J.J. Wallman et al., New J. Phy
 Assuming data of the form <Z>s1	, <Z>s2, ...., <Z>sN, <X>s1, ..., <X>sN, ..., <Y>s1, ..., <Y>sN
 with seqlengths = [s1, s2, ..., sN]
 """
-
 function analyzeRB(ypts, seqlengths; purity=false)
 
-	num_repeats = length(ypts)÷length(seqlengths)÷(2*purity+1)
-
-	xpts = seqlengths[1 + (0:length(ypts)÷(2*purity+1)-1) .÷ num_repeats]
+	# figure out how many sequences of each length we have
+	num_repeats = length(ypts) ÷ length(seqlengths) ÷ (purity ? 3 : 1)
+	xpts = repeat(seqlengths, inner=num_repeats)
 
 	if purity
-		data = ypts[1:length(xpts)].^2+ypts[length(xpts)+1:2*length(xpts)].^2+ypts[2*length(xpts)+1:end].^2
+		# compute length of Bloch vector
+		data = sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2)
 	else
+		# otherwise convert <Z> to prob of 0
 		data = .5 * (1 - ypts[:])
 	end
 
