@@ -200,21 +200,39 @@ function fit_photon_ramsey(xpts, ypts, params)
 	return (result.param[2], errors[2], fit_curve)
 end
 
-function analyzeRB(ypts, seqlengths)
-	#analyzeRB Analyzes a randomized benchmarking experiment
-	#seqlengths, example: [4,8,16,32,64,128,256,384,512,640,768,896,1024,1152,1280,1408,1536,1664]
+"""
+	analyzeRB(ypts, seqlengths; purity=False)
 
-	num_repeats = floor(UInt, length(ypts)/length(seqlengths));
+analyzeRB Analyzes a randomized benchmarking experiment
 
-	xpts = seqlengths[1 + (0:length(ypts)-1) .÷ num_repeats];
+seqlengths, example: [4,8,16,32,64,128,256,384,512,640,768,896,1024,1152,1280,1408,1536,1664]
+if purity = true, fit for incoherent errors. See J.J. Wallman et al., New J. Phys. 17, 113020 (2015)
+Assuming data of the form <Z>s1	, <Z>s2, ...., <Z>sN, <X>s1, ..., <X>sN, ..., <Y>s1, ..., <Y>sN
+with seqlengths = [s1, s2, ..., sN]
+"""
+function analyzeRB(ypts, seqlengths; purity=false)
 
-	fidelity = .5 * (1 - ypts[:]);
+	# figure out how many sequences of each length we have
+	num_repeats = length(ypts) ÷ length(seqlengths) ÷ (purity ? 3 : 1)
+	xpts = repeat(seqlengths, inner=num_repeats)
+
+	if purity
+		# compute length of Bloch vector
+		data = sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2)[:]
+	else
+		# otherwise convert <Z> to prob of 0
+		data = .5 * (1 - ypts[:])
+	end
 
 	model(n, p) = p[1] * (1-p[2]).^n + p[3]
-	fit = curve_fit(model, xpts, fidelity, [0.5, .01, 0.5])
+	fit = curve_fit(model, xpts-purity, data, [0.5, .01, 0.5]) #fit to ...^(n-1) for purity
 	xfine = linspace(seqlengths[1],seqlengths[end],1001)
 	fit_curve = (xfine, model(xfine, fit.param))
-
-	@printf("Error = %0.3f%%", fit.param[2]/2*100)
-	return (xpts, fidelity, fit.param, fit_curve)
+	errors = estimate_errors(fit)
+	if purity
+		@printf("ϵ_inc = %0.3f%%\n", 0.5*(1-sqrt(1-fit.param[2]))*100)
+	else
+		@printf("ϵ = %0.3f%%\n", fit.param[2]/2*100)
+	end
+	return (xpts, data, fit.param, fit_curve, errors)
 end
