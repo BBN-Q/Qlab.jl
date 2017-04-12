@@ -218,7 +218,7 @@ function analyzeRB(ypts, seqlengths; purity=false)
 
 	if purity
 		# compute length of Bloch vector
-		data = sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2)
+		data = sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2)[:]
 	else
 		# otherwise convert <Z> to prob of 0
 		data = .5 * (1 - ypts[:])
@@ -230,9 +230,9 @@ function analyzeRB(ypts, seqlengths; purity=false)
 	fit_curve = (xfine, model(xfine, fit.param))
 	errors = estimate_errors(fit)
 	if purity
-		@printf("ϵ_inc = %0.3f%%", 0.5*(1-sqrt(1-fit.param[2]))*100)
+		@printf("ϵ_inc = %0.3f%%\n", 0.5*(1-sqrt(1-fit.param[2]))*100)
 	else
-		@printf("ϵ = %0.3f%%", fit.param[2]/2*100)
+		@printf("ϵ = %0.3f%%\n", fit.param[2]/2*100)
 	end
 	return (xpts, data, fit.param, fit_curve, errors)
 end
