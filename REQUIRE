@@ -6,3 +6,4 @@ Compat
 StatsBase
 QuantumTomography
 KernelDensity
+PyPlot
