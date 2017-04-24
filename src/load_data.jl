@@ -117,7 +117,9 @@ function load_auspex_data(filename::AbstractString)
             datacol_names = names(g["data"])
             datasets[group_name] = Dict{String, Vector{Any}}()
             for datacol_name in datacol_names
-                datasets[group_name][datacol_name] = read(g["data"][datacol_name])
+              dataset = read(g["data"][datacol_name])
+              # heuristic to read complex numbers stored as HDF5Compounds
+              datasets[group_name][datacol_name] = typeof(dataset[1]) == HDF5.HDF5Compound{2}? [Complex(d.data[1],d.data[2]) for d in dataset] : dataset
             end
         end
     end
