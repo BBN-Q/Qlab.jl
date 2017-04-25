@@ -1,11 +1,11 @@
-using PyPlot, KernelDensity
+using PyPlot, KernelDensity, Formatting
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
   #single-shot readout histograms
   hist_0 = kde(shots_0[:])
   hist_1 = kde(shots_1[:])
-  fidelity = get_fidelity(shots_0, shots_1)
+  fidelity, _ = get_fidelity(shots_0, shots_1)
   sns.set(style="ticks")
   sns.set_style(Dict("xtick.direction" => "in"))
   sns.set_style(Dict("ytick.direction" => "in"))
@@ -57,9 +57,9 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     ind = 1:length(pauli_vec)
     if ~isempty(rho_ideal)
         pauli_vec_ideal, _  = rho2pauli(rho_ideal)
-        bar(ind, pauli_vec_ideal, color="green", label=L"$\rho_{ideal}$")
+        bar(ind, pauli_vec_ideal, bar_width, color="green", label=L"$\rho_{ideal}$")
     end
-    bar(ind, pauli_vec, label=L"$\rho_{actual}$")
+    bar(ind, pauli_vec, bar_width, label=L"$\rho_{actual}$")
     xticks(ind + bar_width/2., map(string,pauli_ops))
     ylim([-1.05,1.05])
     xlabel("Pauli operator")
@@ -70,13 +70,14 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     end
 end
 
-function annotate_plot(message, vals...; coords = [0.75, 0.9])
+
+function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
   annotate(format(message, vals...),
     xy= coords,
     xycoords="axes fraction",
     xytext=[10,15],
     textcoords="offset points",
-    fontsize=10.0,
+    fontsize=fontsize,
 ha="left",
 va="center")
 end
