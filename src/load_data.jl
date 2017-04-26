@@ -105,7 +105,8 @@ function load_auspex_data(filename::AbstractString)
                 # See if we need to get metadata:
                 if "metadata" in names(attrs(g[desc_ref]))
                     meta_ref = read(attrs(g[desc_ref])["metadata"])
-                    axis["metadata"] = read(g[meta_ref])
+                    meta_enum_ref = read(attrs(g[desc_ref])["metadata_enum"])
+                    axis["metadata"] = [read(g[meta_enum_ref])[m+1] for m in read(g[meta_ref])]
                 end
                 
                 push!(desc, axis)
