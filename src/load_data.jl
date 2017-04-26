@@ -138,3 +138,16 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
 	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
 	load_data(filename)
 end
+
+"""
+    load_auspex_data(datapath, filenum; subdir)
+
+Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
+"""
+function load_auspex_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
+	# optionally, search for filenum instead of filename
+	# search in a subdirectory with today's date, if not specified
+	searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
+	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
+	load_auspex_data(filename)
+end
