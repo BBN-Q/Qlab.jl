@@ -1,5 +1,5 @@
 module Qlab
-	using Compat, LaTeXStrings
+	using Compat, PyPlot
 
 	export load_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitsky_golay, read_records, digitize
 
