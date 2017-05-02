@@ -43,18 +43,17 @@ function initial_guess(xpts, ypts)
   Lorentizian function parameters.
   """
   # find offset
+  e = median(ypts)
   if abs(maximum(ypts) - median(ypts)) <= abs(minimum(ypts) - median(ypts))
-        e = median(ypts)
         idx = indmin(ypts)
         direction = -1
     else
-        e = median(ypts)
         idx = indmax(ypts)
         direction = 1
   end
   # center frequency
   b = xpts[idx]
-  half = direction * abs(median(ypts) - ypts[idx]) / 2.
+  half = abs(median(ypts) + ypts[idx]) / 2.
   if direction == 1
     idx_l = findfirst(x -> x > half, ypts)
     idx_r = findlast(x -> x > half, ypts)
