@@ -88,7 +88,7 @@ immutable CircleFitResult
 end
 
 #Fitting to the resonance circle of a quarter-wave resonator
-function fit_resonance_circle{T <: AbstractFloat}(freq::Array{T, 1}, data::Array{Complex{T}, 1})
+function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}})
   """
   Fits complex-valued data
 
@@ -155,12 +155,7 @@ function apply_calibration(τ, α, A, freq, data)
     scaled_data: Data shifted to the canonical position for a circle fit.
   """
   data = data .* exp(-1im * 2 * π * τ * freq)
-  rot = [cos(-α) -sin(-α); sin(-α) cos(-α)]
-  scaled_data = zeros(Complex128, size(data))
-  for j = 1:length(data)
-    v = rot * [real(data[j]); imag(data[j])]
-    scaled_data[j] = (v[1] + 1im * v[2]) / A
-  end
+  scaled_data = exp(-1im * α) * data / A
   return scaled_data
 end
 
