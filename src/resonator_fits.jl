@@ -43,17 +43,18 @@ function initial_guess(xpts, ypts)
   Lorentizian function parameters.
   """
   # find offset
-  e = median(ypts)
   if abs(maximum(ypts) - median(ypts)) <= abs(minimum(ypts) - median(ypts))
+        e = median(ypts)
         idx = indmin(ypts)
         direction = -1
     else
+        e = median(ypts)
         idx = indmax(ypts)
         direction = 1
   end
   # center frequency
   b = xpts[idx]
-  half = abs(median(ypts) + ypts[idx]) / 2.
+  half = direction * abs(median(ypts) - ypts[idx]) / 2.
   if direction == 1
     idx_l = findfirst(x -> x > half, ypts)
     idx_r = findlast(x -> x > half, ypts)
@@ -88,7 +89,7 @@ immutable CircleFitResult
 end
 
 #Fitting to the resonance circle of a quarter-wave resonator
-function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}})
+function fit_resonance_circle{T <: AbstractFloat}(freq::Array{T, 1}, data::Array{Complex{T}, 1})
   """
   Fits complex-valued data
 
@@ -105,7 +106,7 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   scaled_data = apply_calibration(τ, α, A, freq, data)
 
   R, xc, yc = fit_circle(real(scaled_data), imag(scaled_data))
-  ϕ = -asin(yc / R)
+  ϕ = -atan2(yc, xc)
   td = (real(scaled_data) - xc) + 1im*(imag(scaled_data) - yc)
   f0, Qfit, _ = fit_phase(freq, td)
   Qc = Qfit / (2. * R * exp(-1im * ϕ))
@@ -155,7 +156,12 @@ function apply_calibration(τ, α, A, freq, data)
     scaled_data: Data shifted to the canonical position for a circle fit.
   """
   data = data .* exp(-1im * 2 * π * τ * freq)
-  scaled_data = exp(-1im * α) * data / A
+  rot = [cos(-α) -sin(-α); sin(-α) cos(-α)]
+  scaled_data = zeros(Complex128, size(data))
+  for j = 1:length(data)
+    v = rot * [real(data[j]); imag(data[j])]
+    scaled_data[j] = (v[1] + 1im * v[2]) / A
+  end
   return scaled_data
 end
 
