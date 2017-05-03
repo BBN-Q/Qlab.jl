@@ -1,7 +1,7 @@
 module Qlab
 	using Compat, PyPlot
 
-	export load_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitsky_golay, read_records, digitize
+	export load_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitsky_golay, read_records, digitize, unwrap, unwrap!
 
 	include("load_data.jl")
 	include("KT_estimation.jl")
@@ -13,4 +13,6 @@ module Qlab
 	include("tomography.jl")
 	include("plotting.jl")
 	include("shortcuts.jl")
+	include("resonator_fits.jl")
+	include("utility.jl")
 end
