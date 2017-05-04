@@ -120,11 +120,17 @@ function load_auspex_data(filename::AbstractString)
             for datacol_name in datacol_names
               dataset = read(g["data"][datacol_name])
               # heuristic to read complex numbers stored as HDF5Compounds
-              datasets[group_name][datacol_name] = typeof(dataset[1]) == HDF5.HDF5Compound{2}? [Complex(d.data[1],d.data[2]) for d in dataset] : dataset
+              datasets[group_name][datacol_name] = convert_dataset(dataset)
             end
         end
     end
     datasets, descriptors
+end
+
+convert_dataset(ds) = ds
+# heuristic to read complex numbers stored as HDF5Compounds
+function convert_dataset(ds::Vector{HDF5.HDF5Compound{2}})
+  return [complex(d.data[1], d.data[2]) for d in ds]
 end
 
 """
@@ -132,12 +138,11 @@ end
 
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
-	# optionally, search for filenum instead of filename
-	# search in a subdirectory with today's date, if not specified
-	searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
-	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
-	load_data(filename)
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex::Bool=true)
+  # optionally, search for filenum instead of filename
+  # search in a subdirectory with today's date, if not specified
+  filename = joinpath(datapath, subdir, filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1])
+  auspex? load_auspex_data(filename) : load_data(filename)
 end
 
 """
@@ -148,7 +153,6 @@ Search file number filenum in folder datapath/subdir. Subdir default is current 
 function load_auspex_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
 	# optionally, search for filenum instead of filename
 	# search in a subdirectory with today's date, if not specified
-	searchdir(path, fileid) = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(path))
-	filename = joinpath(datapath, subdir, searchdir(joinpath(datapath, subdir), filenum)[1])
+	filename = joinpath(datapath, subdir, filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1])
 	load_auspex_data(filename)
 end
