@@ -141,27 +141,15 @@ function convert_dataset(ds::Vector{HDF5.HDF5Compound{2}})
 end
 
 """
-    load_data(datapath, filenum; subdir)
+    load_data(datapath, filenum; subdir, auspex)
 
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
+auspex: boolean for file format (default = true)
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex=true)
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
   searchdir = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datpath, subdir)))[1]
   filename = joinpath(datapath, subdir, searchdir)
-  load_data(filename)
-end
-
-"""
-    load_auspex_data(datapath, filenum, subdir)
-
-Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
-"""
-function load_auspex_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
-	# optionally, search for filenum instead of filename
-	# search in a subdirectory with today's date, if not specified
-  searchdir = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datpath, subdir)))[1]
-  filename = joinpath(datapath, subdir, searchdir)
-	load_auspex_data(filename)
+  auspex? load_auspex_data(filename) : load_data(filename)
 end
