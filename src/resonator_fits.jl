@@ -105,7 +105,7 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   scaled_data = apply_calibration(τ, α, A, freq, data)
 
   R, xc, yc = fit_circle(real(scaled_data), imag(scaled_data))
-  ϕ = -asin(yc / R)
+  ϕ = -atan2(yc, xc)
   td = (real(scaled_data) - xc) + 1im*(imag(scaled_data) - yc)
   f0, Qfit, _ = fit_phase(freq, td)
   Qc = Qfit / (2. * R * exp(-1im * ϕ))
