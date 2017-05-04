@@ -145,21 +145,23 @@ end
 
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex::Bool=true)
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
-  filename = joinpath(datapath, subdir, filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1])
-  auspex? load_auspex_data(filename) : load_data(filename)
+  searchdir = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datpath, subdir)))[1]
+  filename = joinpath(datapath, subdir, searchdir)
+  load_data(filename)
 end
 
 """
-    load_auspex_data(datapath, filenum; subdir)
+    load_auspex_data(datapath, filenum, subdir)
 
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 """
 function load_auspex_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
 	# optionally, search for filenum instead of filename
 	# search in a subdirectory with today's date, if not specified
-	filename = joinpath(datapath, subdir, filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1])
+  searchdir = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datpath, subdir)))[1]
+  filename = joinpath(datapath, subdir, searchdir)
 	load_auspex_data(filename)
 end
