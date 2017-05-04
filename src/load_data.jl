@@ -53,25 +53,32 @@ function load_data(filename::AbstractString)
 
 end
 
+"""
+    load_auspex_data(filename)
+
+Load hdf5 data and descriptor in auspex format
+
+FILE STRUCTURE:
+file.hdf5:
+   group1/
+      data/
+         axis_1 (contains all tuples visited on this axis)
+         axis_2 (contains all tuples visited on this axis)
+         quantity_1 (the measured values)
+         quantity_2 (the measured values)
+      descriptor (contains references to the axes datasets below)
+      axis_1 (contains the values of the axis — see note #1)
+      axis_2 (contains the values of the axis - see note #1)
+   group2/
+      ... same structure as above ...
+
+Note #1: Any axes referenced by the descriptor can themselves contain
+         references to multiple subaxes. This indicates that the axis
+         is "unstructured", i.e. that multiple coordinates where changed
+         simultaneously.
+"""
 function load_auspex_data(filename::AbstractString)
-    # FILE STRUCTURE:
-    # file.hdf5:
-    #    group1/
-    #       data/
-    #          axis_1 (contains all tuples visited on this axis)
-    #          axis_2 (contains all tuples visited on this axis)
-    #          quantity_1 (the measured values)
-    #          quantity_2 (the measured values)
-    #       descriptor (contains references to the axes datasets below)
-    #       axis_1 (contains the values of the axis — see note #1)
-    #       axis_2 (contains the values of the axis - see note #1)
-    #    group2/
-    #       ... same structure as above ...
-    #
-    # Note #1: Any axes referenced by the descriptor can themselves contain
-    #          references to multiple subaxes. This indicates that the axis
-    #          is "unstructured", i.e. that multiple coordinates where changed
-    #          simultaneously.
+
 
     datasets    = Dict{String, Dict{String, Vector{Any}}}()
     descriptors = Dict{String, Vector{Dict{String,Any}}}()
