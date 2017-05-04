@@ -87,6 +87,7 @@ immutable CircleFitResult
   A
 end
 
+
 #Fitting to the resonance circle of a quarter-wave resonator
 function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}})
   """
@@ -101,62 +102,31 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   @assert length(freq) == length(data) "Frequency and Data vectors must have same length!"
   @assert length(data) > 20 "Too few points."
 
-  τ, α, A = calibrate_resonance_circle(freq, data)
-  scaled_data = apply_calibration(τ, α, A, freq, data)
-
-  R, xc, yc = fit_circle(real(scaled_data), imag(scaled_data))
-  ϕ = -atan2(yc, xc)
-  td = (real(scaled_data) - xc) + 1im*(imag(scaled_data) - yc)
-  f0, Qfit, _ = fit_phase(freq, td)
-  Qc = Qfit / (2. * R * exp(-1im * ϕ))
-  Qi = 1./ (1./Qfit - real(1./Qc))
-  Qc = abs(Qc)
-
-  return CircleFitResult(f0, Qi, Qc, ϕ, -τ, -α, A)
-end
-
-function calibrate_resonance_circle(freq, data)
-  """Calibrates out cable delay and overall system gain to translate resonance
-  circle to "canonical" position for fit.
-
-  Args:
-    freq: Frequency data.
-    data: Complex S21 data.
-  Returns:
-    τ: Fitted cable delay.
-    α: Overall system gain angle.
-    A: Overall system gain amplitude.
-  """
-  #Fit to cable delay.
+  #Fit to cable delay
   τ = fit_delay(freq, data)
-  Sp = exp(-1im * 2. * π * freq * τ) .* data
+  Sp = exp(1im * 2. * π * freq * τ) .* data
   #Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real(Sp), imag(Sp))
-  Strans = (real(Sp) - xc) + 1im * (imag(Sp) - yc)
-  #Calculate invariant ω → ∞ point
-  _, _, θ = fit_phase(freq, Strans)
-  P = xc + R * cos(θ + π) + 1im * (yc + R * sin(θ + π))
+  χ2 = sum(R^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
+  @assert χ2 < 5 "Could not calibrate out cable delay: χ^2 = $χ2."
+  #Translate circle to origin and fit overall phase delay and scaling
+  St = Sp - (xc + 1im * yc)
+  _, _, θ = fit_phase(freq, St)
+  #find f → ∞ point -- this part seems fragile...
+  P = xc + R*cos(θ + π) + 1im*(yc + R*sin(θ + π))
   A = abs(P)
   α = angle(P)
-  return τ, α, A
-end
-
-function apply_calibration(τ, α, A, freq, data)
-  """Apply the calibration to the resonance data to move it to the
-  canonical position.
-
-  Args:
-    τ: Fitted cable delay.
-    α: Overall system gain angle.
-    A: Overall system gain amplitude.
-    freq: Frequency data.
-    data: Complex S21 data.
-  Returns:
-    scaled_data: Data shifted to the canonical position for a circle fit.
-  """
-  data = data .* exp(-1im * 2 * π * τ * freq)
-  scaled_data = exp(-1im * α) * data / A
-  return scaled_data
+  #Calibrate out α, A and get impedance mismatch angle
+  Sc = Sp .* exp(-1im * α) / A
+  Rc, xcc, ycc = fit_circle(real(Sc), imag(Sc))
+  ϕ = -atan2(ycc, 1 - xcc)
+  #Final fit to phase to extract resonant frequency and Q
+  Sct = Sc - (xcc + 1im * ycc)
+  f0, Qr, _ = fit_phase(freq, Sct)
+  Qc_cplx = Qr * exp(-1im * ϕ)/(2 * Rc)
+  Qc = 1 / real(1 / Qc_cplx)
+  Qi = 1/(1/Qr - 1/Qc)
+  return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
 end
 
 function fit_phase(freq, data)
@@ -205,14 +175,15 @@ function fit_delay(freq, data)
     τ: Linear phase delay
   """
   function delay_model(x)
-    data = data .* exp(-2. * π * 1im * freq * x)
-    R, xc, yc = fit_circle(real(data), imag(data))
-    return sum(R.^2 - (real(data) - xc).^2 - (imag(data) - yc).^2)
+    ddata = data .* exp(2. * π * 1im * freq * x)
+    R, xc, yc = fit_circle(real(ddata), imag(ddata))
+    return sum(R.^2 - (real(ddata) - xc).^2 - (imag(ddata) - yc).^2)
   end
   ϕ = unwrap(angle(data))
   linfit(x,p) = p[1] + x * p[2]
-  fit = curve_fit(linfit, cat(1, freq[1:9], freq[end-9:end]), cat(1, ϕ[1:9], ϕ[end-9:end]), [mean(ϕ), 0])
-  result = optimize(delay_model, -abs(fit.param[2]), abs(fit.param[2])) #would prefer 1D gradient descent
+  fit = curve_fit(linfit, freq, ϕ, [mean(ϕ), 0])
+  ϕ0 = fit.param[2] / (2 * π)
+  result = optimize(delay_model, -abs(ϕ0), abs(ϕ0)) #would prefer 1D gradient descent
   return Optim.minimizer(result)
 end
 
@@ -224,7 +195,7 @@ function lorentzian_resonance(p::CircleFitResult, f)
 
   See appendix E of Gao 2008 p. 155 Eq E.1
   """
-  Q = 1 ./ (1/p.Qi + real(1 ./ p.Qc*exp(1im*p.ϕ)));
+  Q = 1 ./ (1/p.Qi + real(1 ./ p.Qc*exp(-1im*p.ϕ)) );
   return p.A*exp(1im*p.α).*exp(-2π*1im*f*p.τ).*(1 - (Q/abs(p.Qc))*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
 end
 
@@ -238,21 +209,21 @@ function simulate_resonance(kwargs...)
 
   Returns: xpts, ypts, curve_params
   """
-  f0 = 6.5 + randn();
-  Qc = 26000 + randn()*2000;
-  Qi = 1.3e5;
-  τ = 1.74*π;
-  ϕ = 2.1*π;
-  Q = 1 ./ (1/Qi + real(1 ./ Qc*exp(1im*ϕ)));
-  α = 1.2;
-  A = 0.73;
+  f0 = 6.5 + randn()
+  Qc = 120000 + randn()*2000
+  Qi = 6e5 + randn()*1e4
+  τ = 1.7
+  ϕ = 0.17 * π
+  Q = 1 ./ (1/Qi + real(1 ./ Qc*exp(-1im*ϕ)))
+  α = 0.35 * π
+  A = 0.23
   df = f0/Q;
-  freqs = linspace(f0 - 6*df, f0 + 6*df, 401);
+  freqs = linspace(f0 - 6*df, f0 + 6*df, 401)
   p = CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
   data = lorentzian_resonance(p, freqs);
   # add some noise
-  rand_phase = 2π*0.002*randn(length(freqs));
-  rand_amp = 0.01*randn(length(freqs));
+  rand_phase = 2π*0.001*randn(length(freqs));
+  rand_amp = 0.002*randn(length(freqs));
   data = data.*exp(-1im*rand_phase).*(1+rand_amp);
 
   return freqs, data, p
