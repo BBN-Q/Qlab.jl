@@ -218,10 +218,10 @@ function analyzeRB(ypts, seqlengths; purity=false)
 
 	if purity
 		# compute length of Bloch vector
-		data = sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2)[:]
+		data = vec(sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2))
 	else
 		# otherwise convert <Z> to prob of 0
-		data = .5 * (1 - ypts[:])
+		data = .5 * (1 - vec(ypts))
 	end
 
 	model(n, p) = p[1] * (1-p[2]).^n + p[3]
