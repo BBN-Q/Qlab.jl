@@ -176,12 +176,10 @@ function fit_phase(freq, data)
   #calibrate out cable delay so this function will fail. Instead just return a "naive"
   #guess and move on.
   if j == 0 || k == 0
-    fitfunc(x) = model(x, [0, 0, freq[idx]])
-    return freq[idx], 0, 0, fitfunc
+    return freq[idx], 0, 0
   end
   Qguess = freq[idx]/abs(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
-  fitfunc(x) = model(x, fit.param)
   return fit.param[3], fit.param[2], fit.param[1]
 end
 
