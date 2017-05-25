@@ -11,9 +11,9 @@ function plot_ss_hists(shots_0, shots_1)
   sns.set_style(Dict("ytick.direction" => "in"))
   w=4
   figure(figsize=(w,w/1.4))
-  plot(hist_0,label=L"$|0\rangle$")
-  plot(hist_1,label=L"$|1\rangle$")
-  ylabel("Counts")
+  plot(hist_0.x, hist_0.density/sum(hist_0.density),label=L"$|0\rangle$")
+  plot(hist_1.x, hist_1.density/sum(hist_1.density),label=L"$|1\rangle$")
+  ylabel("Fraction of counts")
   xlabel("Homodyne voltage (a.u.)")
   lgd = legend()
   annotate(@sprintf("Fid. = %0.2f", fidelity),
@@ -26,7 +26,6 @@ function plot_ss_hists(shots_0, shots_1)
   va="center")
   return hist_0, hist_1
 end
-
 
 function plot2D(data, quad = "real"; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
@@ -69,34 +68,6 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     if ~isempty(rho_ideal)
         legend()
     end
-end
-
-function lblbf()
-  xlabel("Frequency (GHz)")
-end
-
-function lbllf()
-  ylabel("Frequency (GHz)")
-end
-
-function lblbp()
-  xlabel("Power (dBm)")
-end
-
-function lbllp()
-  ylabel("Power (dBm)")
-end
-
-function lblbt()
-  xlabel("Time (ns)")
-end
-
-function lbllt()
-  ylabel("Time (ns)")
-end
-
-function lbllz()
-  ylabel(L"\langle Z \rangle")
 end
 
 function annotate_plot(message, vals...; coords = [0.75, 0.9])

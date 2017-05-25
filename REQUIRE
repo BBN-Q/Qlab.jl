@@ -2,7 +2,9 @@ julia 0.5
 JSON
 HDF5
 LsqFit
+Optim
 Compat
 StatsBase
 QuantumTomography
 KernelDensity
+PyPlot
