@@ -89,21 +89,32 @@ end
 
 
 #Fitting to the resonance circle of a quarter-wave resonator
-function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}})
+function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}}; kwargs...)
   """
   Fits complex-valued data
 
   Args:
     freq: Frequency data.
     data: Complex S21 data.
+    kwargs: Use these if you already know something about the system and would like to override the
+      following properties
+      τ: Cable delay
+      α: System phase shifted
+      A: Overall system gain
   Returns:
     Result: The result of the fit.
   """
   @assert length(freq) == length(data) "Frequency and Data vectors must have same length!"
   @assert length(data) > 20 "Too few points."
 
+  kwdict = Dict(kwargs)
+
   #Fit to cable delay
-  τ = fit_delay(freq, data)
+  if haskey(kwdict, :τ)
+    τ = kwdict[:τ]
+  else
+    τ = fit_delay(freq, data)
+  end
   Sp = exp(1im * 2. * π * freq * τ) .* data
   #Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real(Sp), imag(Sp))
@@ -114,8 +125,16 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   _, _, θ = fit_phase(freq, St)
   #find f → ∞ point -- this part seems fragile...
   P = xc + R*cos(θ + π) + 1im*(yc + R*sin(θ + π))
-  A = abs(P)
-  α = angle(P)
+  if haskey(kwdict, :A)
+    A = kwdict[:A]
+  else
+    A = abs(P)
+  end
+  if haskey(kwdict, :α)
+    α = kwdict[:α]
+  else
+    α = angle(P)
+  end
   #Calibrate out α, A and get impedance mismatch angle
   Sc = Sp .* exp(-1im * α) / A
   Rc, xcc, ycc = fit_circle(real(Sc), imag(Sc))
@@ -127,6 +146,7 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   Qc = 1 / real(1 / Qc_cplx)
   Qi = 1/(1/Qr - 1/Qc)
   return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
+
 end
 
 function fit_phase(freq, data)
@@ -156,12 +176,10 @@ function fit_phase(freq, data)
   #calibrate out cable delay so this function will fail. Instead just return a "naive"
   #guess and move on.
   if j == 0 || k == 0
-    fitfunc(x) = model(x, [0, 0, freq[idx]])
-    return freq[idx], 0, 0, fitfunc
+    return freq[idx], 0, 0
   end
   Qguess = freq[idx]/abs(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
-  fitfunc(x) = model(x, fit.param)
   return fit.param[3], fit.param[2], fit.param[1]
 end
 
@@ -200,7 +218,7 @@ function lorentzian_resonance(p::CircleFitResult, f)
 end
 
 function lorentzian_resonance(p::Array, f)
-  return lorentzian_resonance(CircleFitResult(p[1], p[2], p[3], p[4], p[5], p[6]), f)
+  return lorentzian_resonance(CircleFitResult(p[1], p[2], p[3], p[4], p[5], p[6], p[7]), f)
 end
 
 function simulate_resonance(kwargs...)
@@ -261,5 +279,8 @@ function fit_circle(x, y)
   xc = -ev[2]/2/ev[1]
   yc = -ev[3]/2/ev[1]
   R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4])/2./abs(ev[1])
+  if abs(xc - yc) < eps()
+    warn("The moment matrix of the circle fit has repeated eigenvalues; the fit has probably failed.")
+  end
   return R, xc, yc
 end
