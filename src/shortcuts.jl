@@ -108,3 +108,27 @@ function get3pops(data)
   pvec2 = [pvec2temp; 1-sum(pvec2temp,1)];
   return (pvec3, pvec2)
 end
+
+"""
+    get_feedback_fidelity(data, nqubits, nrounds, bit; cal_repeats = 2, target_state = 0)
+
+get fidelity for resetting 'bit' in a 'nqubits' register. Note that this estimate assumes no measurement crosstalk.
+nrounds: feedback rounds
+bit: 1, 2, 3... from LSB to MSB
+cal_repeats: number of calibration points per computational state
+target_state: 0/1 to target either qubit state
+"""
+function get_feedback_fidelity(data, nqubits, nrounds, bit; cal_repeat = 2, target_state = 0)
+    zero_cal = mean(data[end-cal_repeat*(2^nqubits)+1:end-cal_repeat*(2^nqubits-1)])
+    one_cal = mean(data[end-cal_repeat*(2^nqubits-2^(nqubits-bit))+1:end-cal_repeat*(2^nqubits-1-2^(nqubits-bit))])
+    scale_factor = -(one_cal - zero_cal)/2;
+    data = data[1:end-cal_repeat*2^nqubits]
+    normdata = (data - zero_cal)./scale_factor + 1
+    fidmat = zeros(2^nqubits, nrounds)
+    for state_ind = 1:size(fidmat,1)
+        for round_ind = 1:size(fidmat,2)
+            fidmat[state_ind, round_ind] = (1+(-1)^target_state*normdata[(state_ind-1)*(nrounds+1)+round_ind+1])/2
+        end
+    end
+    return fidmat
+end

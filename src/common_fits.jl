@@ -2,7 +2,7 @@ using LsqFit
 
 function fit_t1(xpts, ypts)
 	model(t, p) = p[1]*exp(-t ./ p[2]) + p[3]
-	p_guess = [maximum(ypts)-minimum(ypts), xpts[end]/3., ypts[end]]
+	p_guess = [ypts[1]-ypts[end], xpts[end]/3., ypts[end]]
 	result = curve_fit(model, xpts, ypts, p_guess)
 	errors = estimate_errors(result)
 	xfine = linspace(xpts[1],xpts[end],1001)
