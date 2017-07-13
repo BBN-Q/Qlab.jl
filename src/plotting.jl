@@ -1,4 +1,4 @@
-using PyPlot, KernelDensity, Formatting
+using PyPlot, KernelDensity, Formatting, Seaborn
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
@@ -6,9 +6,6 @@ function plot_ss_hists(shots_0, shots_1)
   hist_0 = kde(shots_0[:])
   hist_1 = kde(shots_1[:])
   fidelity, _ = get_fidelity(shots_0, shots_1)
-  sns.set(style="ticks")
-  sns.set_style(Dict("xtick.direction" => "in"))
-  sns.set_style(Dict("ytick.direction" => "in"))
   w=4
   figure(figsize=(w,w/1.4))
   plot(hist_0.x, hist_0.density/sum(hist_0.density),label=L"$|0\rangle$")
