@@ -1,10 +1,52 @@
 using LsqFit
 
-function fit_t1(xpts, ypts)
+"""
+	FitResult type that stores the output of a fit.
+"""
+immutable FitResult
+    fit_params::Dict{String,Float64}
+    sq_error::Float64
+    Nσ::Float64
+    errors::Dict{String,Float64}
+    fit_curve::Function
+    model_str::String
+end
+
+"""
+	Helper function to return a fit to a model.
+"""
+function generic_fit(xpts, ypts, model, initial_guess, fit_params::Dict{String,Float64}, model_string::String; yvars=[])
+
+	@assert length(xpts) == length(ypts) "X and Y data length must match."
+	if isempty(yvars)
+			result = curve_fit(model, xpts, ypts, p_guess)
+	else
+			@assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
+			result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), initial_guess)
+	end
+	errors = estimate_errors(result)
+	sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
+	dof = length(xpts)-length(initial_guess)
+	Nσ = sq_error/sqrt(2dof) - dof/sqrt(2dof)
+	return FitResult( fit_params(result.param),
+										sq_error,
+										Nσ,
+										fit_params(errors),
+										xpts->model(xpts,result.param),
+										fit_string)
+end
+
+function fit_t1(xpts, ypts, yvars=[])
+
+	T1_fit_dict(p) = Dict("a" => p[1], "T₁" => p[2], "b" => p[3])
+
 	model(t, p) = p[1]*exp(-t ./ p[2]) + p[3]
 	p_guess = [ypts[1]-ypts[end], xpts[end]/3., ypts[end]]
 	result = curve_fit(model, xpts, ypts, p_guess)
 	errors = estimate_errors(result)
+
+	sq_errors = sum()
+
 	xfine = linspace(xpts[1],xpts[end],1001)
   fit_curve = (xfine, model(xfine, result.param))
   return result.param[2:3], errors[2:3], fit_curve
@@ -21,14 +63,7 @@ function fit_line(xpts, ypts)
 end
 
 
-immutable FitResult
-    fit_params::Dict{String,Float64}
-    sq_error::Float64
-    Nσ::Float64
-    errors::Dict{String,Float64}
-    fit_curve::Function
-    model_str::String
-end
+
 
 fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
 
