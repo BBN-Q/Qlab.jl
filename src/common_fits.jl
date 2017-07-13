@@ -55,17 +55,15 @@ function fit_ramsey(xpts, ypts, yvars=[])
 
     if isempty(yvars)
         result = curve_fit(model, xpts, ypts, p_guess)
+		sq_error = NaN
+		Nσ = NaN
     else
         result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), p_guess)
+		sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
+		dof = length(xpts)-5
+		Nσ = sq_error/sqrt(2dof) - dof/sqrt(2dof)
     end
     errors = estimate_errors(result)
-    sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
-
-    dof = length(xpts)-5
-    Nσ = sq_error/sqrt(2dof) - dof/sqrt(2dof)
-
-    xfine = linspace(xpts[1],xpts[end],1001)
-    fit_curve = (xfine, model(xfine, result.param))
 
     return FitResult( fit_dict1(result.param),
                       sq_error,
