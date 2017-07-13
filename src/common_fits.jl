@@ -82,21 +82,12 @@ end
 """ `fit_line(xpts, ypts, yvars=[])`
 Fit to linear model y = ax + b.
 """
-function fit_line(xpts, ypts)
+function fit_line(xpts, ypts, yvars=[])
 	model(t, p) = p[1]*t + p[2]
-	p_guess = [-ypts[indmin(abs(xpts))]/xpts[indmin(abs(ypts))], ypts[indmin(abs(xpts))]]
+	p_guess = [-ypts[indmin(abs.(xpts))]/xpts[indmin(abs.(ypts))], ypts[indmin(abs.(xpts))]]
 	return generic_fit(xpts, ypts, model, p_guess,
 										x->Dict("a" => x[1], "b"=>x[2]), "ax + b", yvars=yvars)
 end
-
-
-
-
-fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
-
-fit_dict2(p) = Dict("a₁"=>p[1], "T₁"=>p[2], "f₁"=>p[3], "ϕ₁"=>p[4],
-                    "a₂"=>p[5], "T₂"=>p[6], "f₂"=>p[7], "ϕ₂"=>p[8],
-                    "b"=>p[9])
 
 """ `fit_ramsey(xpts, ypts, yvars=[])`
 
@@ -172,8 +163,8 @@ function fit_sin(xpts, ypts, yvars=[])
 	model(t, p) = p[1]*sin.(2π*p[2] .* t) + p[3]
 	# Use KT estimation to get a guess for the fit
 	freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
-	idx = indmax(abs(amps))
-	p_guess = [amps[idx], Ts[idx], freqs[idx], mean(ypts)];
+	idx = indmax(abs.(amps))
+	p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], mean(ypts)];
 	return generic_fit(xpts, ypts, model, p_guess,
 										x->Dict("a"=>x[1], "f"=>x[2], "b"=>x[3]),
 										"a*sin(2πf t) + b", yvars=yvars)
