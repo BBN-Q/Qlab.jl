@@ -1,26 +1,17 @@
 using HDF5, Compat, KernelDensity
 
 """
-    cal_data(data; caltype, numrepeats)
+    cal_data(data; bit, nqubits, num_repeats)
 
 Normalize data using calibration points
+bit: 1, 2, 3... from LSB to MSB
+nqubits: number of qubits
+num_repeats: number of calibration points per computational state
 """
-function cal_data(data; caltype = "std", num_repeats = 2)
-
-  if caltype == "a"
-    zeroCal = (mean(data[end-2*num_repeats+1:4:end])+mean(data[end-2*num_repeats+2:4:end]))/2;
-    piCal = (mean(data[end-2*num_repeats+3:4:end])+mean(data[end-2*num_repeats+4:4:end]))/2;
-  elseif caltype == "b"
-    zeroCal = mean(data[end-2*num_repeats+1:end-num_repeats]);
-    piCal = mean(data[end-num_repeats+1:end]);
-  else #standard calibration
-    zeroCal = mean(data[end-2*num_repeats+1:end-num_repeats]);
-    piCal = mean(data[end-num_repeats+1:end]);
-  end
-
-  scaleFactor = -(piCal - zeroCal)/2;
-  data = data[1:end-2*num_repeats];
-  data = (data - zeroCal)/scaleFactor + 1;
+function cal_data(data; bit = 1, nqubits = 1, num_repeats = 2)
+	zero_cal = mean(data[end-num_repeats*(2^nqubits)+1:end-num_repeats*(2^nqubits-1)])
+	one_cal = mean(data[end-num_repeats*(2^nqubits-2^(bit-1)):end-num_repeats*(2^nqubits-2^(bit-1)-1)-1])
+	scale_factor = -(one_cal - zero_cal)/2;
 end
 
 """
