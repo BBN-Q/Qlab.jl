@@ -12,6 +12,8 @@ function cal_data(data; bit = 1, nqubits = 1, num_repeats = 2)
 	zero_cal = mean(data[end-num_repeats*(2^nqubits)+1:end-num_repeats*(2^nqubits-1)])
 	one_cal = mean(data[end-num_repeats*(2^nqubits-2^(bit-1)):end-num_repeats*(2^nqubits-2^(bit-1)-1)-1])
 	scale_factor = -(one_cal - zero_cal)/2;
+	data = data[1:end-2*num_repeats]
+	data = (data - zero_cal)/scale_factor + 1
 end
 
 """
