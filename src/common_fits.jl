@@ -99,6 +99,7 @@ with optional weights for each point.
 """
 function fit_ramsey(xpts, ypts, yvars=[])
 
+<<<<<<< HEAD
 	fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
   model(t, p) = p[1]*exp.(-t ./ p[2]).*cos.(2π*p[3] .* t + p[4]) + p[5]
   # Use KT estimation to get a guess for the fit
@@ -108,6 +109,14 @@ function fit_ramsey(xpts, ypts, yvars=[])
 	return generic_fit(xpts, ypts, model, p_guess,
 										fit_dict1, "a*exp(-t/T).*cos(2πf .* t + ϕ) + b)", yvars=yvars)
 
+=======
+		fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
+    model(t, p) = p[1]*exp.(-t ./ p[2]).*cos.(2π*p[3] .* t + p[4]) + p[5]
+    # Use KT estimation to get a guess for the fit
+    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 1)
+    p_guess = [abs(amps[1]), Ts[1], freqs[1], angle(amps[1]), mean(ypts)];
+		return generic_fit(xpts, ypts, model, p_guess,											fit_dict1, "a*exp(-t/T).*cos(2πf .* t + ϕ) + b)", yvars=yvars)
+>>>>>>> d17fc7732c10b197368153a87d0fe82430a01744
 end
 
 """ `fit_twofreq_ramsey(xpts, ypts, yvars=[])`
