@@ -8,12 +8,49 @@ bit: 1, 2, 3... from LSB to MSB
 nqubits: number of qubits
 num_repeats: number of calibration points per computational state
 """
-function cal_data(data; bit = 1, nqubits = 1, num_repeats = 2)
+function cal_data(data::Array; bit = 1, nqubits = 1, num_repeats = 2)
 	zero_cal = mean(data[end-num_repeats*(2^nqubits)+1:end-num_repeats*(2^nqubits-1)])
 	one_cal = mean(data[end-num_repeats*(2^nqubits-2^(bit-1)):end-num_repeats*(2^nqubits-2^(bit-1)-1)-1])
 	scale_factor = -(one_cal - zero_cal)/2;
 	data = data[1:end-2*num_repeats]
 	data = (data - zero_cal)/scale_factor + 1
+end
+
+"""
+  cal_data(data; qubit, cal0, cal1)
+
+Normalize data with reference measurements defined in metadata. Format used in Auspex.
+
+data: dictionary (Auspex format)
+qubit: qubit name
+cal0/1: reference measurement for qubit in 0/1
+"""
+
+function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = "", cal0::String = "0", cal1::String = "1")
+  if length(collect(keys(data))) == 1
+    qubit = collect(keys(data))[1]
+  elseif isempty(qubit)
+    error("More than one qubit. Specify qubit name and calibration labels")
+  elseif ~(qubit in keys(data))
+    error("Qubit not found")
+  end
+
+  metadata_key = []
+  for k in keys(data[qubit])
+    if contains(k, "metadata")
+      push!(metadata_key, k)
+    end
+  end
+  if length(metadata_key) != 1
+      error("Invalid metadata")
+  end
+  ind0 = find(x -> x==parse(UInt8, cal0, 2), data[qubit][metadata_key[1]])
+  ind1 = find(x -> x==parse(UInt8, cal1, 2), data[qubit][metadata_key[1]])
+  zero_cal = mean(data[qubit]["Data"][ind0])
+  one_cal = mean(data[qubit]["Data"][ind1])
+  scale_factor = -(one_cal - zero_cal)/2
+  data = data[qubit]["Data"][find(x -> x == data[qubit][metadata_key[1]][1], data[qubit][metadata_key[1]])] #assumes calibrations at the end only
+  data = (data - zero_cal)/scale_factor + 1
 end
 
 """
