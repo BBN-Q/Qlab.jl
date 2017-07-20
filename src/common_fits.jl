@@ -14,7 +14,7 @@ using LsqFit
 """
 FitResult type that stores the output of a fit.
 """
-immutable FitResult
+struct FitResult
     fit_params::Dict{String,Float64}
     sq_error::Float64
     Nσ::Float64

@@ -68,7 +68,7 @@ function initial_guess(xpts, ypts)
   return [a, b, c, d, e];
 end
 
-immutable CircleFitResult
+struct CircleFitResult
   """Container for the result of a circle fit.
     f0: Resonator center frequency.
     Qi: Resonator internal quality factor.
