@@ -149,7 +149,7 @@ auspex: boolean for file format (default = true)
 function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex=true)
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
-  searchdir = filter(x -> contains(x,string(filenum)) && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1]
+  searchdir = filter(x -> parse(Int, match(r"\d+", x).match) == filenum && contains(x,".h5"), readdir(joinpath(datapath, subdir)))[1]
   filename = joinpath(datapath, subdir, searchdir)
   auspex? load_auspex_data(filename) : load_data(filename)
 end
