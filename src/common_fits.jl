@@ -169,7 +169,7 @@ Fit function in McClure et al., Phys. Rev. App. 2016. Params are:
 """
 function fit_photon_ramsey(xpts, ypts, params)
     params[1:3]*=2*pi #convert to angular frequencies
-    model_0(t, p) = (-imag(exp(-(1/params[4]+params[2]*1im).*t + (p[1]-p[2]*params[3]*(1-exp(-((params[1] + params[3]*1im).*t)))/(params[1]+params[3]*1im))*1im)))
+    model_0(t, p) = (-imag.(exp.(-(1/params[4]+params[2]*1im).*t + (p[1]-p[2]*params[3]*(1-exp.(-((params[1] + params[3]*1im).*t)))/(params[1]+params[3]*1im))*1im)))
     function model(t, p)
         if params[6] == 1
             return params[5]*model_0(t, p) + (1-params[5])*model_0(t, [p[1]+pi; p[2:end]])
