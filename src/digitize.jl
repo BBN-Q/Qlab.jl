@@ -35,9 +35,9 @@ function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :eq
     Arange = linspace(minA,maxA,1000)
     if isnan(thr)
       thr = if mode==:max
-              Arange[indmax(abs(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))]
+              Arange[indmax(abs.(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))]
             elseif mode==:equal
-              Arange[indmin(abs(ecdf(cal0)(Arange)-1+ecdf(cal1)(Arange)))]
+              Arange[indmin(abs.(ecdf(cal0)(Arange)-1+ecdf(cal1)(Arange)))]
             else
               error("Unsupported digitization mode")
             end

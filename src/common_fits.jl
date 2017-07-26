@@ -121,7 +121,7 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     #Use KT estimation to get a guess for the fit
     freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 2)
     phases = angle(amps)
-    amps = abs(amps)
+    amps = abs.(amps)
     p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
 
     fitresult2 = generic_fit(xpts, ypts, model2, p_guess, fit_dict2,

@@ -33,7 +33,7 @@ function plot2D(data, quad = "real"; normalize=false)
   elseif quad == "imag"
     data_quad = imag(data["data"])
   elseif quad == "amp"
-    data_quad = abs(data["data"])
+    data_quad = abs.(data["data"])
   end
   if normalize
     data_quad./=data_quad[:,1]

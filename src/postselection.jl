@@ -45,13 +45,13 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
   end
 
   for kk=1:length(ind0)
-    fidvec_un[kk] = 1-0.5*(1-0.5*sum(abs(PDFvec[:,ind0[kk]]-PDFvec[:,ind1[kk]])))
-    indmaximum = indmax(abs(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
+    fidvec_un[kk] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[kk]]-PDFvec[:,ind1[kk]])))
+    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], fidvec_un[kk])
-    tempvec0 = cumsum(abs(PDFvec[:,ind0[kk]]))
+    tempvec0 = cumsum(abs.(PDFvec[:,ind0[kk]]))
     err0[kk] = tempvec0[indmaximum]
     @printf("Error for |0> for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], tempvec0[indmaximum])
-    tempvec1 = 1-cumsum(abs(PDFvec[:,ind1[kk]]))
+    tempvec1 = 1-cumsum(abs.(PDFvec[:,ind1[kk]]))
     err1[kk] = tempvec1[indmaximum]
     @printf("Error for |1> for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], tempvec1[indmaximum])
     opt_thr[kk] = bins[indmaximum]
@@ -97,7 +97,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
 
 
   for kk=1:length(ind0)
-    fidvec_con[kk] = 1-0.5*(1-0.5*sum(abs(PDFvec_con[:,ind0[kk]]-PDFvec_con[:,ind1[kk]])))
+    fidvec_con[kk] = 1-0.5*(1-0.5*sum(abs.(PDFvec_con[:,ind0[kk]]-PDFvec_con[:,ind1[kk]])))
     @printf("Optimum conditioned fid. for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], fidvec_con[kk])
   end
   return bins, PDFvec, PDFvec_con,data_con,opt_thr,datamat, fidvec_un, err0, err1, fidvec_con
@@ -181,13 +181,13 @@ function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,sele
   for Aind = 1:length(Anum)
     @printf("Ancilla n.%d\n", Aind)
     #for kk=1:size(ind0,1)
-    fidvec_un[Aind] = 1-0.5*(1-0.5*sum(abs(PDFvec[:,ind0[Aind],Aind]-PDFvec[:,ind1[Aind],Aind])))
-    indmaximum = indmax(abs(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
+    fidvec_un[Aind] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[Aind],Aind]-PDFvec[:,ind1[Aind],Aind])))
+    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], fidvec_un[Aind])
-    tempvec0 = cumsum(abs(PDFvec[:,ind0[Aind],Aind]))
+    tempvec0 = cumsum(abs.(PDFvec[:,ind0[Aind],Aind]))
     err0[Aind] = tempvec0[indmaximum]
     @printf("Error for |0> for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], tempvec0[indmaximum])
-    tempvec1 = 1-cumsum(abs(PDFvec[:,ind1[Aind],Aind]))
+    tempvec1 = 1-cumsum(abs.(PDFvec[:,ind1[Aind],Aind]))
     err1[Aind] = tempvec1[indmaximum]
     @printf("Error for |1> for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], tempvec1[indmaximum])
     opt_thr[Aind] = bins[Aind][indmaximum]

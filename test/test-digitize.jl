@@ -13,19 +13,19 @@ function test_digitize(sep; C=1000, K=1000)
     de, pe0e, pe1e = digitize(rvolts, cal0, cal1, mode=:equal)
     # compute theoretical prob of being correct
     pe = 1/2 - 1/2*erf(sep/(2*sqrt(2)))
-    
-    return pe, 
-           sum(abs(dm-rbits))/length(rbits), 
-           sum(abs(de-rbits))/length(rbits), 
-           pe0m, 
-           pe1m, 
-           pe0e, 
-           pe1e 
+
+    return pe,
+           sum(abs.(dm-rbits))/length(rbits),
+           sum(abs.(de-rbits))/length(rbits), 
+           pe0m,
+           pe1m,
+           pe0e,
+           pe1e
 
 end
 
 # run a bunch of tests, store each as a column of a matrix, take the mean
-# the rows are: 
+# the rows are:
 #   - predicted error rate (asymptotic)
 #   - observed error rate for :max mode
 #   - observed error rate for :equal mode
