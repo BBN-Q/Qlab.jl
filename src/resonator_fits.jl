@@ -68,7 +68,7 @@ function initial_guess(xpts, ypts)
   return [a, b, c, d, e];
 end
 
-immutable CircleFitResult
+struct CircleFitResult
   """Container for the result of a circle fit.
     f0: Resonator center frequency.
     Qi: Resonator internal quality factor.
@@ -115,10 +115,10 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   else
     τ = fit_delay(freq, data)
   end
-  Sp = exp(1im * 2. * π * freq * τ) .* data
+  Sp = exp.(1im * 2. * π * freq * τ) .* data
   #Get best-fit circle and translate to origin.
-  R, xc, yc = fit_circle(real(Sp), imag(Sp))
-  χ2 = sum(R^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
+  R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
+  χ2 = sum(R^2 - (real.(Sp) - xc).^2 - (imag.(Sp) - yc).^2)
   @assert χ2 < 5 "Could not calibrate out cable delay: χ^2 = $χ2."
   #Translate circle to origin and fit overall phase delay and scaling
   St = Sp - (xc + 1im * yc)
@@ -136,13 +136,13 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
     α = angle(P)
   end
   #Calibrate out α, A and get impedance mismatch angle
-  Sc = Sp .* exp(-1im * α) / A
-  Rc, xcc, ycc = fit_circle(real(Sc), imag(Sc))
+  Sc = Sp .* exp.(-1im * α) / A
+  Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
   ϕ = -atan2(ycc, 1 - xcc)
   #Final fit to phase to extract resonant frequency and Q
   Sct = Sc - (xcc + 1im * ycc)
   f0, Qr, _ = fit_phase(freq, Sct)
-  Qc_cplx = Qr * exp(-1im * ϕ)/(2 * Rc)
+  Qc_cplx = Qr * exp.(-1im * ϕ)/(2 * Rc)
   Qc = 1 / real(1 / Qc_cplx)
   Qi = 1/(1/Qr - 1/Qc)
   return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
@@ -160,9 +160,9 @@ function fit_phase(freq, data)
     Θ0: Offset phase angle.
   """
   model(x, p) = p[1] + 2. * slope * atan(2 * p[2] *(1. - x / p[3]))
-  ϕ = unwrap(angle(data))
+  ϕ = unwrap(angle.(data))
   #first some initial guesses
-  idx = indmin(abs(ϕ - mean(ϕ)))
+  idx = indmin(abs.(ϕ - mean(ϕ)))
   if mean(ϕ[1:9]) > mean(ϕ[end-9:end])
     j = findfirst(x -> x - ϕ[idx] < π/2., ϕ)
     k = findfirst(x -> x - ϕ[idx] < -π/2., ϕ)
@@ -178,7 +178,7 @@ function fit_phase(freq, data)
   if j == 0 || k == 0
     return freq[idx], 0, 0
   end
-  Qguess = freq[idx]/abs(freq[j] - freq[k])
+  Qguess = freq[idx]/abs.(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
   return fit.param[3], fit.param[2], fit.param[1]
 end
@@ -193,11 +193,11 @@ function fit_delay(freq, data)
     τ: Linear phase delay
   """
   function delay_model(x)
-    ddata = data .* exp(2. * π * 1im * freq * x)
-    R, xc, yc = fit_circle(real(ddata), imag(ddata))
-    return sum(R.^2 - (real(ddata) - xc).^2 - (imag(ddata) - yc).^2)
+    ddata = data .* exp.(2. * π * 1im * freq * x)
+    R, xc, yc = fit_circle(real.(ddata), imag.(ddata))
+    return sum(R.^2 - (real.(ddata) - xc).^2 - (imag.(ddata) - yc).^2)
   end
-  ϕ = unwrap(angle(data))
+  ϕ = unwrap(angle.(data))
   linfit(x,p) = p[1] + x * p[2]
   fit = curve_fit(linfit, freq, ϕ, [mean(ϕ), 0])
   ϕ0 = fit.param[2] / (2 * π)
@@ -213,8 +213,8 @@ function lorentzian_resonance(p::CircleFitResult, f)
 
   See appendix E of Gao 2008 p. 155 Eq E.1
   """
-  Q = 1 ./ (1/p.Qi + real(1 ./ p.Qc*exp(-1im*p.ϕ)) );
-  return p.A*exp(1im*p.α).*exp(-2π*1im*f*p.τ).*(1 - (Q/abs(p.Qc))*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
+  Q = 1 ./ (1/p.Qi + real.(1 ./ p.Qc*exp.(-1im*p.ϕ)) );
+  return p.A*exp(1im*p.α).*exp.(-2π*1im*f*p.τ).*(1 - (Q/abs(p.Qc))*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
 end
 
 function lorentzian_resonance(p::Array, f)
@@ -232,7 +232,7 @@ function simulate_resonance(kwargs...)
   Qi = 6e5 + randn()*1e4
   τ = 1.7
   ϕ = 0.17 * π
-  Q = 1 ./ (1/Qi + real(1 ./ Qc*exp(-1im*ϕ)))
+  Q = 1 ./ (1/Qi + real(1 ./ Qc*exp.(-1im*ϕ)))
   α = 0.35 * π
   A = 0.23
   df = f0/Q;
