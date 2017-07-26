@@ -14,5 +14,4 @@ module Qlab
 	include("plotting.jl")
 	include("shortcuts.jl")
 	include("resonator_fits.jl")
-	include("utility.jl")
 end

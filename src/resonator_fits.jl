@@ -2,42 +2,44 @@ using LsqFit
 using Optim
 
 #Fitting a biased Lorentzian to amplitude data.
+"""
+Returns a five parameter, biased Lorentizian function
+
+Args:
+  x: domain of the returned function
+  p: a vector of length 5 with function params --
+      (amplitude, frequency, line width, linear skew, offset)
+Returns:
+    The computed function.
+
+See appendix E.4 of Gao\'s thesis (2008)
+"""
 function bias_lorentzian(x, p)
-  """
-  Returns a five parameter, biased Lorentizian function
-
-  Args:
-    x: domain of the returned function
-    p: a vector of length 5 with function params --
-        (amplitude, frequency, line width, linear skew, offset)
-  Returns:
-      The computed function.
-
-  See appendix E.4 of Gao\'s thesis (2008)
-  """
   return p[1] ./ ((x - p[2]).^2 + (p[3]/2)^2) + p[4]*(x - p[2]) + p[5];
 end
 
-function fit_biased_lorentzian(freq, data)
-  """
-  Fit frequency-amplitude data to a skewed Lorentzian using nonlinear least-squares.
+"""
+Fit frequency-amplitude data to a skewed Lorentzian using nonlinear least-squares.
+Model is y = a / ((x - b)^2 + (c/2)^2) + d*(x - b) + e
 
-  Args:
-    freq: Frequency data.
-    data: Data to be fitted.
-    alpha: Confidence limit for error calculation. Default 0.95.
-  Returns:
-    fit: LsqFitResult object.
-    fit_function(x): Biased Lorentzian at fitted parameters.
-  """
-  p0 = initial_guess(freq, data)
-  fit = curve_fit(bias_lorentzian, freq, data, p0)
-  errors = estimate_errors(fit, 0.95)
-  fit_function(x) = bias_lorentzian(x, fit.param)
-  return fit, fit_function
+Args:
+  freq: Frequency data.
+  data: Data to be fitted.
+  vars: Variance of data. Defaults to empty.
+Returns:
+  fit: LsqFitResult object.
+  fit_function(x): Biased Lorentzian at fitted parameters.
+"""
+function fit_biased_lorentzian(freq, data, vars=[])
+
+  BL_fit_dict(p) = Dict("a" => p[1], "b" => p[2], "c" => p[3],
+                                "d" => p[4], "e" => p[5])
+  p0 = initial_guess_blorentz(freq, data)
+  return generic_fit(freq, data, bias_lorentzian, p0, BL_fit_dict,
+    "y = a / ((x - b)^2 + (c/2)^2) + d*(x - b) + e", yvars=vars)
 end
 
-function initial_guess(xpts, ypts)
+function initial_guess_blorentz(xpts, ypts)
   """
   Returns a length five vector with an initial guess of
   Lorentizian function parameters.
