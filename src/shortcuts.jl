@@ -157,6 +157,7 @@ function unwrap!{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   return ϕ .+ vcat(0, cumsum(ϕcorr))
 end
 
+""" In-place version of unwrap. """
 function unwrap{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   return unwrap!(copy(ϕ), discont=discont)
 end
