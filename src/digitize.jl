@@ -53,7 +53,7 @@ function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :eq
         dcal1 = ~dcal1
     end
 
-    return round(Int,ddata), sum(dcal0)/length(cal0), 1.0-sum(dcal1)/length(cal1), thr
+    return round.(Int,ddata), sum(dcal0)/length(cal0), 1.0-sum(dcal1)/length(cal1), thr
 end
 
 """
