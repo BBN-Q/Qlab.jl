@@ -11,6 +11,7 @@ script:
   - julia -e 'ENV["PYTHON"]=""'
   - julia -e 'Pkg.add("Conda")'
   - julia -e 'Pkg.add("PyCall")'
+  - julia -e 'Pkg.build("PyCall")'
   - julia -e 'using Conda; Conda.add("matplotlib")'
   - julia -e 'Pkg.clone(pwd())'
   - julia -e 'Pkg.build("Qlab")'
