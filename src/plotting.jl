@@ -45,11 +45,11 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
   end
   label_x = xpoints["name"]
   if xpoints["unit"] != "None"
-    label_x = string(label_x, "[", xpoints["unit"], "]" )
+    label_x = string(label_x, " (", xpoints["unit"], ")" )
   end
   label_y = ypoints["name"]
   if ypoints["unit"] != "None"
-    label_y = string(label_y, "[", ypoints["unit"], "]" )
+    label_y = string(label_y, " (", ypoints["unit"], ")" )
   end
   if isnan(vmin)
     vmin = minimum(data_grid)
@@ -67,7 +67,7 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
     xlabel(label_x)
     ylabel(label_y)
   end
-  colorbar()
+  return xpoints["points"], ypoints["points"], data_grid
 end
 
 function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_width=0.6)
