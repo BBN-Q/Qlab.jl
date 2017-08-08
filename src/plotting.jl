@@ -24,28 +24,50 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot2D(data, quad = "real"; normalize=false)
-  fig = figure("pyplot_surfaceplot",figsize=(5,3))
+function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN)
+  fig = figure("pyplot_surfaceplot",figsize=(3,3))
   ax = gca()
   ax[:ticklabel_format](useOffset=false)
-  if quad == "real"
-    data_quad = real(data["data"])
-  elseif quad == "imag"
-    data_quad = imag(data["data"])
-  elseif quad == "amp"
-    data_quad = abs.(data["data"])
+  data_values = data[1][group]["Data"]
+  xpoints = data[2][group][1]
+  ypoints = data[2][group][2]
+  xpoints_values = xpoints["points"]
+  ypoints_values = ypoints["points"]
+  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
+  data_quad = quad_f[quad].(data_values)
+  xpoints_grid = repmat(xpoints_values', length(ypoints_values), 1)
+  ypoints_grid = repmat(ypoints_values, 1, length(xpoints_values))
+  data_grid = reshape(data_quad, length(ypoints_values), length(xpoints_values))
+  if normalize == 1
+   data_grid = (data_grid'./data_grid[1,:])'
+  elseif normalize == 2
+   data_grid./=data_grid[:,1]
   end
-  if normalize
-    data_quad./=data_quad[:,1]
+  label_x = xpoints["name"]
+  if xpoints["unit"] != "None"
+    label_x = string(label_x, "[", xpoints["unit"], "]" )
   end
-  xpoints = repmat(data["xpoints"],1,length(data["ypoints"]))
-  ypoints = repmat(data["ypoints"]',length(data["xpoints"]),1)
-  pcolormesh(xpoints, ypoints, data_quad',cmap = "terrain")
+  label_y = ypoints["name"]
+  if ypoints["unit"] != "None"
+    label_y = string(label_y, "[", ypoints["unit"], "]" )
+  end
+  if isnan(vmin)
+    vmin = minimum(data_grid)
+  end
+  if isnan(vmax)
+    vmax = maximum(data_grid)
+  end
+
+  if transpose
+    pcolormesh(ypoints_grid, xpoints_grid, data_grid, cmap = "terrain", vmin = vmin, vmax = vmax)
+    ylabel(label_x)
+    xlabel(label_y)
+  else
+    pcolormesh(xpoints_grid, ypoints_grid, data_grid, cmap = "terrain", vmin = vmin, vmax = vmax)
+    xlabel(label_x)
+    ylabel(label_y)
+  end
   colorbar()
-  xlabel(data["xlabel"])
-  ylabel(data["ylabel"])
-  xlim([minimum(xpoints),maximum(xpoints)])
-  ylim([minimum(ypoints),maximum(ypoints)])
 end
 
 function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_width=0.6)
