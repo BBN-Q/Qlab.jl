@@ -84,7 +84,7 @@ function load_auspex_data(filename::AbstractString)
     descriptors = Dict{String, Vector{Dict{String,Any}}}()
 
     h5open(filename, "r") do f
-        
+
         # Find all of the group names, which will correspond to qubits when
         # using exp_factory inside of auspex. The default group name is simply
         # "main".
@@ -115,7 +115,7 @@ function load_auspex_data(filename::AbstractString)
                     meta_enum_ref = read(attrs(g[desc_ref])["metadata_enum"])
                     axis["metadata"] = [read(g[meta_enum_ref])[m+1] for m in read(g[meta_ref])]
                 end
-                
+
                 push!(desc, axis)
             end
 
@@ -149,8 +149,17 @@ auspex: boolean for file format (default = true)
 function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex=true)
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
-  regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
-  searchdir = filter(x -> ismatch(regexpr, x) && parse(Int, match(regexpr, x).captures[1]) == filenum, readdir(joinpath(datapath, subdir)))[1]
-  filename = joinpath(datapath, subdir, searchdir)
+  #regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
+  numstring = lpad("$filenum")
+  regexpr = auspex? Regex("(.+)($(lpad(filenum, 4, "0")))(\\.h5)") : Regex("($(lpad(filenum, 4, "0")))(\\_.+)(\\.h5)")
+  files = filter(x -> ismatch(regexpr, x), readdir(joinpath(datapath, subdir)))
+  if length(files) == 0
+    println("No matching files found!")
+    return
+  elseif length(files) > 1
+    println("More than one matching file found!")
+    return
+  end
+  filename = joinpath(datapath, subdir, files[1])
   auspex? load_auspex_data(filename) : load_data(filename)
 end
