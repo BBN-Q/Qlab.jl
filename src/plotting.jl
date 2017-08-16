@@ -70,6 +70,31 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
   return xpoints["points"], ypoints["points"], data_grid
 end
 
+
+function plot2D_matlab(data, quad = "real"; normalize=false)
+  fig = figure("pyplot_surfaceplot",figsize=(5,3))
+  ax = gca()
+  ax[:ticklabel_format](useOffset=false)
+  if quad == "real"
+    data_quad = real(data["data"])
+  elseif quad == "imag"
+    data_quad = imag(data["data"])
+  elseif quad == "amp"
+    data_quad = abs.(data["data"])
+  end
+  if normalize
+    data_quad./=data_quad[:,1]
+  end
+  xpoints = repmat(data["xpoints"],1,length(data["ypoints"]))
+  ypoints = repmat(data["ypoints"]',length(data["xpoints"]),1)
+  pcolormesh(xpoints, ypoints, data_quad',cmap = "terrain")
+  colorbar()
+  xlabel(data["xlabel"])
+  ylabel(data["ylabel"])
+  xlim([minimum(xpoints),maximum(xpoints)])
+  ylim([minimum(ypoints),maximum(ypoints)])
+end
+
 function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_width=0.6)
     pauli_vec, pauli_ops = rho2pauli(rho)
     figure(figsize=(fig_width,fig_height))
