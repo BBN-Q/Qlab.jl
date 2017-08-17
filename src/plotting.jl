@@ -24,6 +24,28 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
+function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", normalize = false, bit = 1, nqubits = 1, num_repeats = 2)
+  fig = figure(figsize=(3,3))
+  data_values = data[1][group]["Data"]
+  xpoints = data[2][group][1]
+  xpoints_values = xpoints["points"]
+  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
+  data_quad = quad_f[quad].(data_values)
+  if normalize
+    data_quad = Qlab.cal_data(data_quad)
+    xpoints_values = xpoints_values[1:end-num_repeats*(2^nqubits)]
+    label_y = L"\langle Z\rangle"
+end
+   plot(xpoints_values, data_quad)
+   label_x = xpoints["name"]
+   if xpoints["unit"] != "None"
+    label_x = string(label_x, " (", xpoints["unit"], ")" )
+   end
+   xlabel(label_x)
+   ylabel(label_y)
+  return xpoints_values, data_values
+end
+
 function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN)
   fig = figure("pyplot_surfaceplot",figsize=(3,3))
   ax = gca()
@@ -67,7 +89,7 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
     xlabel(label_x)
     ylabel(label_y)
   end
-  return xpoints["points"], ypoints["points"], data_grid
+  return xpoints_values, ypoints_values, data_grid
 end
 
 
