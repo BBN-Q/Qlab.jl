@@ -161,7 +161,7 @@ function fit_phase(freq, data)
     Q: Quality factor.
     Θ0: Offset phase angle.
   """
-  model(x, p) = p[1] + 2. * slope * atan(2 * p[2] *(1. - x / p[3]))
+  model(x, p) = p[1] + 2. * slope * atan.(2 * p[2] *(1. - x / p[3]))
   ϕ = unwrap(angle.(data))
   #first some initial guesses
   idx = indmin(abs.(ϕ - mean(ϕ)))
