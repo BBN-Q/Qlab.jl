@@ -117,15 +117,18 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   else
     τ = fit_delay(freq, data)
   end
-  Sp = exp.(1im * 2. * π * freq * τ) .* data
-  #Get best-fit circle and translate to origin.
+  Sp = exp.(1im * 2π * freq * τ) .* data
+  # Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
-  χ2 = sum(R^2 - (real.(Sp) - xc).^2 - (imag.(Sp) - yc).^2)
+  χ2 = sum(R^2 - (real.(Sp) - xc).^2 + (imag.(Sp) - yc).^2)
   @assert χ2 < 5 "Could not calibrate out cable delay: χ^2 = $χ2."
-  #Translate circle to origin and fit overall phase delay and scaling
-  St = Sp - (xc + 1im * yc)
-  _, _, θ = fit_phase(freq, St)
-  #find f → ∞ point -- this part seems fragile...
+  # Translate circle to origin and fit overall phase delay and scaling
+  zc = xc + 1im*yc
+  St = (Sp - zc)
+  f0, Qr, θ = fit_phase(freq, St)
+  @show θ
+
+  # find f → ∞ point -- this part seems fragile...
   P = xc + R*cos(θ + π) + 1im*(yc + R*sin(θ + π))
   if haskey(kwdict, :A)
     A = kwdict[:A]
@@ -137,15 +140,14 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   else
     α = angle(P)
   end
-  #Calibrate out α, A and get impedance mismatch angle
+  # Calibrate out α, A to place P in canonical position at (1, 0im)
   Sc = Sp .* exp.(-1im * α) / A
+  # get impedance mismatch angle
   Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
-  ϕ = -atan2(ycc, 1 - xcc)
-  #Final fit to phase to extract resonant frequency and Q
-  Sct = Sc - (xcc + 1im * ycc)
-  f0, Qr, _ = fit_phase(freq, Sct)
-  Qc_cplx = Qr * exp.(-1im * ϕ)/(2 * Rc)
-  Qc = 1 / real(1 / Qc_cplx)
+  ϕ = -asin(ycc / Rc)
+
+  # coupling Q determined by the chord parallel to the x-axis
+  Qc = Qr / (2*Rc * cos(ϕ))
   Qi = 1/(1/Qr - 1/Qc)
   return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
 
@@ -161,7 +163,6 @@ function fit_phase(freq, data)
     Q: Quality factor.
     Θ0: Offset phase angle.
   """
-  model(x, p) = p[1] + 2. * slope * atan.(2 * p[2] *(1. - x / p[3]))
   ϕ = unwrap(angle.(data))
   #first some initial guesses
   idx = indmin(abs.(ϕ - mean(ϕ)))
@@ -180,6 +181,7 @@ function fit_phase(freq, data)
   if j == 0 || k == 0
     return freq[idx], 0, 0
   end
+  model(x, p) = p[1] + 2. * slope * atan.(2 * p[2] * (1. - x / p[3]))
   Qguess = freq[idx]/abs.(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
   return fit.param[3], fit.param[2], fit.param[1]
@@ -197,7 +199,7 @@ function fit_delay(freq, data)
   function delay_model(x)
     ddata = data .* exp.(2. * π * 1im * freq * x)
     R, xc, yc = fit_circle(real.(ddata), imag.(ddata))
-    return sum(R.^2 - (real.(ddata) - xc).^2 - (imag.(ddata) - yc).^2)
+    return sum(R.^2 - (real.(ddata) - xc).^2 + (imag.(ddata) - yc).^2)
   end
   ϕ = unwrap(angle.(data))
   linfit(x,p) = p[1] + x * p[2]
@@ -249,6 +251,20 @@ function simulate_resonance(kwargs...)
   return freqs, data, p
 end
 
+function circle_model(x, p)
+    """
+    Plots a circle with parameters p, at polar angles x.
+
+    Args:
+      x: vector polar angles at which to evaluate the circle
+      p: vector or tuple of model parameters (R, xc, yc)
+    Returns:
+      Vector of complex values
+    """
+    R, xc, yc = p
+    return (xc + 1im*yc) + R * exp.(1im * x)
+end
+
 function fit_circle(x, y)
   """Algebraic fit of (x,y) points to a circle. See:
       N. Chernov and C. J. Lesort, Least Squares Fitting of Circles,
@@ -274,7 +290,10 @@ function fit_circle(x, y)
   Mxz = sum(x .* z)
   Myz = sum(y .* z)
   M = [Mzz Mxz Myz Mz; Mxz Mxx Mxy Mx; Myz Mxy Myy My; Mz Mx My n];
-  B = [0 0 0 -2; 0 1 0 0; 0 0 1 0; -2 0 0 0]
+  B = [0  0  0 -2;
+       0  1  0  0;
+       0  0  1  0;
+      -2  0  0  0]
   D, V = eig(M, B)
   D[D .< eps()] = NaN
   ev = V[:, indmin(D)]
