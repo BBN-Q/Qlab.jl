@@ -46,10 +46,7 @@ end
   return xpoints_values, data_values
 end
 
-function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN)
-  fig = figure("pyplot_surfaceplot",figsize=(3,3))
-  ax = gca()
-  ax[:ticklabel_format](useOffset=false)
+function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true)
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   ypoints = data[2][group][2]
@@ -66,10 +63,12 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
    data_grid./=data_grid[:,1]
   end
   label_x = xpoints["name"]
+  contains(label_x, "_metadata") && (label_x = split(label_x, "_metadata")[1])
   if xpoints["unit"] != "None"
     label_x = string(label_x, " (", xpoints["unit"], ")" )
   end
   label_y = ypoints["name"]
+  contains(label_y, "_metadata") && (label_y = split(label_y, "_metadata")[1])
   if ypoints["unit"] != "None"
     label_y = string(label_y, " (", ypoints["unit"], ")" )
   end
@@ -79,19 +78,75 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
   if isnan(vmax)
     vmax = maximum(data_grid)
   end
-
-  if transpose
-    pcolormesh(ypoints_grid, xpoints_grid, data_grid, cmap = "terrain", vmin = vmin, vmax = vmax)
-    ylabel(label_x)
-    xlabel(label_y)
-  else
-    pcolormesh(xpoints_grid, ypoints_grid, data_grid, cmap = "terrain", vmin = vmin, vmax = vmax)
-    xlabel(label_x)
-    ylabel(label_y)
+  if show_plot
+    fig = figure("pyplot_surfaceplot",figsize=(3,3))
+    ax = gca()
+    ax[:ticklabel_format](useOffset=false)
+    if transpose
+      pcolormesh(ypoints_grid, xpoints_grid, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
+      ylabel(label_x)
+      xlabel(label_y)
+    else
+      pcolormesh(xpoints_grid, ypoints_grid, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
+      xlabel(label_x)
+      ylabel(label_y)
+    end
+    colorbar()
   end
   return xpoints_values, ypoints_values, data_grid
 end
 
+function reshape2D(data, group = "main"; quad = "real", normalize = false)
+  return plot2D(data, group; quad = quad, normalize = normalize, show_plot = false)
+end
+
+
+"""
+  plot_multi
+
+Plot multiple 1D traces on top of each other.
+group: data group name
+Optional arguments
+-------------------------
+quad: quadrature: real, imag, or abs
+offset: vertical offset between curves
+cals: normalize to 0/1 using metadata
+show_legend: show legend in plot
+"""
+
+function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1")
+  fig = figure(figsize = (3,3))
+  data_values = data[1][group]["Data"]
+  xpoints = data[2][group][2]
+  ypoints = data[2][group][1]
+  xpoints_values = xpoints["points"]
+  ypoints_values = ypoints["points"]
+  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
+  data_quad = quad_f[quad].(data_values)
+  if cals
+    data_quad = cal_data(data[1], qubit=group)
+    data_quad = quad_f[quad].(data_quad)
+  else
+    # reshape to array of array
+    data_quad = reshape(data_quad, length(xpoints_values), length(ypoints_values))
+    data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
+  end
+  for k in 1:length(data_quad)
+    plot(xpoints_values[1:length(data_quad[k])], data_quad[k] + offset*k, label=string(ypoints_values[k]))
+  end
+  label_x = xpoints["name"]
+  contains(label_x, "_metadata") && (label_x = split(label_x, "_metadata")[1])
+  if xpoints["unit"] != "None"
+    label_x = string(label_x, " (", xpoints["unit"], ")" )
+  end
+  xlabel(label_x)
+  if cals
+    ylabel("<Z>")
+  else
+    ylabel("Voltage (a.u.)")
+  end
+  show_legend && (legend())
+end
 
 function plot2D_matlab(data, quad = "real"; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
