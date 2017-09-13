@@ -114,8 +114,9 @@ cals: normalize to 0/1 using metadata
 show_legend: show legend in plot
 """
 
-function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1")
-  fig = figure(figsize = (3,3))
+function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1", fit_name = "")
+  figure(figsize = (isempty(fit_name)? 6 : 3,3))
+  subplot(1, isempty(fit_name)? 1 : 2, 1)
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
@@ -146,6 +147,12 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     ylabel("Voltage (a.u.)")
   end
   show_legend && (legend())
+
+  if ~isempty(fit_name)
+    subplot(1,2,2)
+    plot_fit_multi(xpoints_values[1:length(data_quad[1])], data_quad, fit_name)
+  end
+  return xpoints_values[1:length(data_quad[1])], data_quad
 end
 
 function plot2D_matlab(data, quad = "real"; normalize=false)
@@ -201,4 +208,33 @@ function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
     fontsize=fontsize,
 ha="left",
 va="center")
+end
+
+function plot_fit_multi(xpts, ypts, function_name, iter = [])
+  Tvec = zeros(length(ypts))
+  dTvec = zeros(length(ypts))
+  fit_function = eval(parse(string("fit", function_name)))
+  figure(figsize = (8,3))
+  subplot(1,2,1)
+  ax = gca()
+  for k=1:length(ypts)
+      fit_result = (fit_function)(xpts,ypts[k])
+      plot(xpts, ypts[k], label="data", marker = "o", linewidth = 0, markersize=2)
+      plot(xpts, fit_result.fit_curve(xpts),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+      Tvec[k] = fit_result.fit_params["T"]
+      dTvec[k] = fit_result.errors["T"]
+      #Qlab.annotate_plot(L"$T_1 = {1:.1f}\pm{2:.1f}\,\mu s$", fit_result.fit_params["T"], fit_result.errors["T"], coords = (0.4, 0.7))
+      xlabel(L"Time ($\mu$s)")
+      ylabel(L"\langle Z \rangle")
+  end
+  plr = subplot(1,2,2)
+  if isempty(iter)
+    iter = 1:length(ypts)
+    xlabel_name = "Repeat"
+  end
+  isempty(iter) && (iter = 1:length(ypts))
+  errorbar(iter, T1vec, dT1vec, marker = "o", markersize=4)
+  ylabel(L"$T_1$ ($\mu$ s)")
+  xlabel(xlabel_name)
+  plr[:axis](ymin = 0)
 end
