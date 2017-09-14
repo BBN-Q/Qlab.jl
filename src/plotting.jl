@@ -142,7 +142,7 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   ax = gca()
   for k in 1:length(data_quad)
     xpts = xpoints_values[1:length(data_quad[k])]
-    plot(xpts, data_quad[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 2)
+    plot(xpts, data_quad[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
     if ~isempty(fit_name)
       fit_result = (fit_function)(xpts, data_quad[k])
       k==1 && println("Fitting to model: ", fit_result.model_str)
@@ -171,8 +171,9 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     xlabel(ypoints["name"])
     plr[:axis](ymin = 0)
     subplots_adjust(wspace=0.3)
+    return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
   end
-  return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
+  return xpoints_values[1:length(data_quad[1])], data_quad
 end
 
 function plot2D_matlab(data, quad = "real"; normalize=false)
