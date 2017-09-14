@@ -114,13 +114,21 @@ cals: normalize to 0/1 using metadata
 show_legend: show legend in plot
 """
 
-function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1")
-  fig = figure(figsize = (3,3))
+function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T")
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   ypoints_values = ypoints["points"]
+  if isempty(fit_name)
+    figure(figsize= (3.5,3))
+  else
+    figure(figsize = (8,3))
+    subplot(1,2,1)
+    Tvec = zeros(length(ypoints_values))
+    dTvec = zeros(length(ypoints_values))
+    fit_function = eval(parse(string("fit_", fit_name)))
+  end
   quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
   data_quad = quad_f[quad].(data_values)
   if cals
@@ -131,8 +139,17 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     data_quad = reshape(data_quad, length(xpoints_values), length(ypoints_values))
     data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
   end
+  ax = gca()
   for k in 1:length(data_quad)
-    plot(xpoints_values[1:length(data_quad[k])], data_quad[k] + offset*k, label=string(ypoints_values[k]))
+    xpts = xpoints_values[1:length(data_quad[k])]
+    plot(xpts, data_quad[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
+    if ~isempty(fit_name)
+      fit_result = (fit_function)(xpts, data_quad[k])
+      k==1 && println("Fitting to model: ", fit_result.model_str)
+      plot(xpts, fit_result.fit_curve(xpts),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+      Tvec[k] = fit_result.fit_params[fit_param_name]
+      dTvec[k] = fit_result.errors[fit_param_name]
+    end
   end
   label_x = xpoints["name"]
   contains(label_x, "_metadata") && (label_x = split(label_x, "_metadata")[1])
@@ -146,6 +163,17 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     ylabel("Voltage (a.u.)")
   end
   show_legend && (legend())
+
+  if ~isempty(fit_name)
+    plr = subplot(1,2,2)
+    errorbar(ypoints_values, Tvec, dTvec, marker = "o", markersize=4)
+    ylabel(fit_param_name) #TODO: unit? Proper parameter name, e.g., T1?
+    xlabel(ypoints["name"])
+    plr[:axis](ymin = 0)
+    subplots_adjust(wspace=0.3)
+    return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
+  end
+  return xpoints_values[1:length(data_quad[1])], data_quad
 end
 
 function plot2D_matlab(data, quad = "real"; normalize=false)
