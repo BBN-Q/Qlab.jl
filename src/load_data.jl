@@ -1,4 +1,5 @@
 using HDF5, JSON, Compat
+using DataFrames
 
 """
     load_data(filename)
@@ -161,4 +162,17 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
   end
   filename = joinpath(datapath, subdir, files[1])
   auspex? load_auspex_data(filename) : load_data(filename)
+end
+
+"""
+	load_latest_data()
+    load_latest_data(ind_from_last)
+
+Load latest data file, or ind_from_last files before the latest.
+"""
+function load_latest_data(logpath::AbstractString, ind_from_last::Int = 0)
+	df = readtable(logpath)
+	@assert ind_from_last < length(df.columns[1]) "Not enough data files in the history."
+	filename = df.columns[1][end-ind_from_last]
+	load_auspex_data(filename)
 end
