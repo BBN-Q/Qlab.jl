@@ -24,28 +24,36 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", normalize = false, bit = 1, nqubits = 1, num_repeats = 2, save_fig = "png")
+function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
-  if normalize
-    data_quad = Qlab.cal_data(data_quad)
-    xpoints_values = xpoints_values[1:end-num_repeats*(2^nqubits)]
+  if cals
+    data_values = cal_data(data[1], qubit=group)
     label_y = L"\langle Z\rangle"
-end
-   plot(xpoints_values, data_quad)
-   label_x = xpoints["name"]
-   if xpoints["unit"] != "None"
+  else
+    data_values = data[1][group]["Data"]
+    label_y = "Voltage (a.u.)"
+  end
+  data_quad = quad_f[quad].(data_values)
+  xpoints_values = xpoints_values[1:length(data_quad)]
+  plot(xpoints_values, data_quad)
+  if ~isempty(fit_name)
+    fit_function = eval(parse(string("fit_", fit_name)))
+    fit_result = (fit_function)(xpoints_values, data_quad)
+    println("Fitting to model: ", fit_result.model_str)
+    plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", linewidth=1)
+  end
+  label_x = xpoints["name"]
+  if xpoints["unit"] != "None"
     label_x = string(label_x, " (", xpoints["unit"], ")" )
-   end
-   xlabel(label_x)
-   ylabel(label_y)
-   title(get_partial_filename(data[3]["filename"]))
-   ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
-
+  end
+  xlabel(label_x)
+  ylabel(label_y)
+  title(get_partial_filename(data[3]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
   return xpoints_values, data_values
 end
 
@@ -117,6 +125,9 @@ quad: quadrature: real, imag, or abs
 offset: vertical offset between curves
 cals: normalize to 0/1 using metadata
 show_legend: show legend in plot
+fit_name: name of fit function as in fit_###
+fit_param_name: fit parameter of interest (output)
+save_fig: format of the figure to be saved (empty string to disable)
 """
 
 function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true,
@@ -136,7 +147,6 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     fit_function = eval(parse(string("fit_", fit_name)))
   end
   quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
   if cals
     data_quad = cal_data(data[1], qubit=group)
     data_quad = quad_f[quad].(data_quad)
@@ -164,7 +174,7 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   end
   xlabel(label_x)
   if cals
-    ylabel("<Z>")
+    ylabel(L"\langle Z\rangle")
   else
     ylabel("Voltage (a.u.)")
   end
