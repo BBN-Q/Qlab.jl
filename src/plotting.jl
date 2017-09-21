@@ -168,8 +168,14 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   else
     ylabel("Voltage (a.u.)")
   end
-  show_legend && (legend())
-
+  if show_legend
+    label_y = ypoints["name"]
+    contains(label_y, "_metadata") && (label_y = split(label_y, "_metadata")[1])
+    if ypoints["unit"] != "None"
+      label_y = string(label_y, " (", ypoints["unit"], ")" )
+    end
+    legend(title = label_y)
+  end
   if ~isempty(fit_name)
     plr = subplot(1,2,2)
     errorbar(ypoints_values, Tvec, dTvec, marker = "o", markersize=4)
