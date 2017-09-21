@@ -24,12 +24,11 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", data_function = "", fit_name = "", fit_param_name = "T", save_fig = "png")
+function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
   if cals
     data_values = cal_data(data[1], qubit=group)
     label_y = L"\langle Z\rangle"
@@ -37,12 +36,8 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
     data_values = data[1][group]["Data"]
     label_y = "Voltage (a.u.)"
   end
-  data_quad = quad_f[quad].(data_values)
+  data_quad = eval(parse(quad)).(data_values)
   xpoints_values = xpoints_values[1:length(data_quad)]
-  if ~isempty(data_function)
-    data_quad = broadcast(eval(parse(data_function)), data_quad)
-    label_y = string(data_function, "(", label_y, ")")
-  end
   plot(xpoints_values, data_quad)
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
@@ -136,7 +131,6 @@ save_fig: format of the figure to be saved (empty string to disable)
 
 function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true,
   cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
-  data_values = data[1][group]["Data"]
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
   xpoints_values = xpoints["points"]
@@ -150,13 +144,14 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     subplot(1,2,1)
     fit_function = eval(parse(string("fit_", fit_name)))
   end
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
   if cals
-    data_quad = cal_data(data[1], qubit=group)
-    data_quad = quad_f[quad].(data_quad)
+    data_values = cal_data(data[1], qubit=group)
+    data_quad = eval(parse(quad)).(data_values)
   else
+    data_values = data[1][group]["Data"]
     # reshape to array of array
-    data_quad = reshape(data_quad, length(xpoints_values), length(ypoints_values))
+    data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
+    data_quad = eval(parse(quad)).(data_values)
     data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
   end
   ax = gca()
