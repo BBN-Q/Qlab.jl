@@ -43,6 +43,7 @@ end
    end
    xlabel(label_x)
    ylabel(label_y)
+   set_title_from_filename(data[3]["filename"])
   return xpoints_values, data_values
 end
 
@@ -92,6 +93,7 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
       ylabel(label_y)
     end
     colorbar()
+    set_title_from_filename(data[3]["filename"])
   end
   return xpoints_values, ypoints_values, data_grid
 end
@@ -173,6 +175,7 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     subplots_adjust(wspace=0.3)
     return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
   end
+  set_title_from_filename(data[3]["filename"])
   return xpoints_values[1:length(data_quad[1])], data_quad
 end
 
@@ -219,7 +222,6 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     end
 end
 
-
 function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
   annotate(format(message, vals...),
     xy= coords,
@@ -229,4 +231,13 @@ function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
     fontsize=fontsize,
 ha="left",
 va="center")
+end
+
+function set_title_from_filename(filename, num_dirs = 2)
+  cur_path = ""
+  for n=1:num_dirs+1
+    filename, filename_dir = splitdir(filename)
+    cur_path = n==1? filename_dir : joinpath(filename_dir, cur_path)
+  end
+  title(cur_path)
 end
