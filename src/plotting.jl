@@ -24,7 +24,7 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", normalize = false, bit = 1, nqubits = 1, num_repeats = 2)
+function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", normalize = false, bit = 1, nqubits = 1, num_repeats = 2, save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
@@ -43,11 +43,14 @@ end
    end
    xlabel(label_x)
    ylabel(label_y)
-   set_title_from_filename(data[3]["filename"])
+   short_filename = get_partial_filename(data[3]["filename"])
+   title(short_filename)
+   ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'.', save_fig))
+
   return xpoints_values, data_values
 end
 
-function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true)
+function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   ypoints = data[2][group][2]
@@ -93,7 +96,9 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
       ylabel(label_y)
     end
     colorbar()
-    set_title_from_filename(data[3]["filename"])
+    short_filename = get_partial_filename(data[3]["filename"])
+    title(short_filename)
+    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'.', save_fig))
   end
   return xpoints_values, ypoints_values, data_grid
 end
@@ -116,7 +121,8 @@ cals: normalize to 0/1 using metadata
 show_legend: show legend in plot
 """
 
-function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T")
+function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true,
+  cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
@@ -175,7 +181,9 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     subplots_adjust(wspace=0.3)
     return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
   end
-  set_title_from_filename(data[3]["filename"])
+  short_filename = get_partial_filename(data[3]["filename"])
+  title(short_filename)
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'.', save_fig))
   return xpoints_values[1:length(data_quad[1])], data_quad
 end
 
@@ -233,11 +241,11 @@ ha="left",
 va="center")
 end
 
-function set_title_from_filename(filename, num_dirs = 2)
+function get_partial_filename(filename, num_dirs = 2)
   cur_path = ""
   for n=1:num_dirs+1
     filename, filename_dir = splitdir(filename)
     cur_path = n==1? filename_dir : joinpath(filename_dir, cur_path)
   end
-  title(cur_path)
+  return cur_path
 end
