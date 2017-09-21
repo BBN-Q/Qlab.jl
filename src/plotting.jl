@@ -34,7 +34,7 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
     label_y = L"\langle Z\rangle"
   else
     data_values = data[1][group]["Data"]
-    label_y = "Voltage (a.u.)"
+    label_y = string(quad, "(Voltage)")
   end
   data_quad = eval(parse(quad)).(data_values)
   xpoints_values = xpoints_values[1:length(data_quad)]
@@ -175,7 +175,7 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   if cals
     ylabel(L"\langle Z\rangle")
   else
-    ylabel("Voltage (a.u.)")
+    ylabel(string(quad, "(Voltage)"))
   end
   if show_legend
     label_y = ypoints["name"]
