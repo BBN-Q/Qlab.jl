@@ -24,7 +24,7 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
+function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", data_function = "", fit_name = "", fit_param_name = "T", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
@@ -39,6 +39,10 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
   end
   data_quad = quad_f[quad].(data_values)
   xpoints_values = xpoints_values[1:length(data_quad)]
+  if ~isempty(data_function)
+    data_quad = broadcast(eval(parse(data_function)), data_quad)
+    label_y = string(data_function, "(", label_y, ")")
+  end
   plot(xpoints_values, data_quad)
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
@@ -54,7 +58,7 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
   ylabel(label_y)
   title(get_partial_filename(data[3]["filename"]))
   ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
-  return xpoints_values, data_values
+  return xpoints_values, data_values, fit_result
 end
 
 function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
@@ -137,13 +141,13 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   ypoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   ypoints_values = ypoints["points"]
+  Tvec = zeros(length(ypoints_values))
+  dTvec = zeros(length(ypoints_values))
   if isempty(fit_name)
     figure(figsize= (3.5,3))
   else
     figure(figsize = (8,3))
     subplot(1,2,1)
-    Tvec = zeros(length(ypoints_values))
-    dTvec = zeros(length(ypoints_values))
     fit_function = eval(parse(string("fit_", fit_name)))
   end
   quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
@@ -193,11 +197,10 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     xlabel(ypoints["name"])
     plr[:axis](ymin = 0)
     subplots_adjust(wspace=0.3)
-    return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
   end
   title(get_partial_filename(data[3]["filename"]))
   ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
-  return xpoints_values[1:length(data_quad[1])], data_quad
+  return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
 end
 
 function plot2D_matlab(data, quad = "real"; normalize=false)
