@@ -24,7 +24,7 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
+function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
@@ -36,7 +36,7 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
     data_values = data[1][group]["Data"]
     label_y = string(quad, "(Voltage)")
   end
-  data_quad = eval(parse(quad)).(data_values)
+  data_quad = eval(quad).(data_values)
   xpoints_values = xpoints_values[1:length(data_quad)]
   plot(xpoints_values, data_quad)
   if ~isempty(fit_name)
@@ -56,14 +56,13 @@ function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", cals 
   return xpoints_values, data_values, fit_result
 end
 
-function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
+function plot2D(data, group = "main"; quad = :real, transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   ypoints = data[2][group][2]
   xpoints_values = xpoints["points"]
   ypoints_values = ypoints["points"]
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
+  data_quad = eval(quad).(data_values)
   xpoints_grid = repmat(xpoints_values', length(ypoints_values), 1)
   ypoints_grid = repmat(ypoints_values, 1, length(xpoints_values))
   data_grid = reshape(data_quad, length(ypoints_values), length(xpoints_values))
@@ -108,7 +107,7 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
   return xpoints_values, ypoints_values, data_grid
 end
 
-function reshape2D(data, group = "main"; quad = "real", normalize = false)
+function reshape2D(data, group = "main"; quad = :real, normalize = false)
   return plot2D(data, group; quad = quad, normalize = normalize, show_plot = false)
 end
 
@@ -129,7 +128,7 @@ fit_param_name: fit parameter of interest (output)
 save_fig: format of the figure to be saved (empty string to disable)
 """
 
-function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true,
+function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = false, show_legend = true,
   cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
@@ -146,12 +145,12 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   end
   if cals
     data_values = cal_data(data[1], qubit=group)
-    data_quad = eval(parse(quad)).(data_values)
+    data_quad = eval(quad).(data_values)
   else
     data_values = data[1][group]["Data"]
     # reshape to array of array
     data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
-    data_quad = eval(parse(quad)).(data_values)
+    data_quad = eval(quad).(data_values)
     data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
   end
   ax = gca()
@@ -198,17 +197,11 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
 end
 
-function plot2D_matlab(data, quad = "real"; normalize=false)
+function plot2D_matlab(data, quad = :real; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
   ax = gca()
   ax[:ticklabel_format](useOffset=false)
-  if quad == "real"
-    data_quad = real(data["data"])
-  elseif quad == "imag"
-    data_quad = imag(data["data"])
-  elseif quad == "amp"
-    data_quad = abs.(data["data"])
-  end
+  data_quad = eval(quad).(data["data"])
   if normalize
     data_quad./=data_quad[:,1]
   end
