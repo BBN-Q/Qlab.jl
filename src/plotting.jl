@@ -102,7 +102,7 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     end
     colorbar()
     title(get_partial_filename(data[3]["filename"]))
-    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
+    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   return xpoints_values, ypoints_values, data_grid
 end
@@ -193,7 +193,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     subplots_adjust(wspace=0.3)
   end
   title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
 end
 
