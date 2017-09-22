@@ -24,36 +24,49 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = "real", label_y = "V (a.u.)", normalize = false, bit = 1, nqubits = 1, num_repeats = 2)
+function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
-  if normalize
-    data_quad = Qlab.cal_data(data_quad)
-    xpoints_values = xpoints_values[1:end-num_repeats*(2^nqubits)]
+  if cals
+    data_values = cal_data(data[1], qubit=group)
     label_y = L"\langle Z\rangle"
-end
-   plot(xpoints_values, data_quad)
-   label_x = xpoints["name"]
-   if xpoints["unit"] != "None"
+  else
+    data_values = data[1][group]["Data"]
+    label_y = string(quad, "(Voltage)")
+  end
+  data_quad = eval(quad).(data_values)
+  xpoints_values = xpoints_values[1:length(data_quad)]
+  plot(xpoints_values, data_quad)
+  if ~isempty(fit_name)
+    fit_function = eval(parse(string("fit_", fit_name)))
+    fit_result = (fit_function)(xpoints_values, data_quad)
+    println("Fitting to model: ", fit_result.model_str)
+    plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", linewidth=1)
+  end
+  label_x = xpoints["name"]
+  if xpoints["unit"] != "None"
     label_x = string(label_x, " (", xpoints["unit"], ")" )
-   end
-   xlabel(label_x)
-   ylabel(label_y)
-  return xpoints_values, data_values
+  end
+  xlabel(label_x)
+  ylabel(label_y)
+  title(get_partial_filename(data[3]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  if isempty(fit_name)
+    return (xpoints_values, data_values)
+  else
+    return (xpoints_values, data_values, fit_result)
+  end
 end
 
-function plot2D(data, group = "main"; quad = "real", transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true)
+function plot2D(data, group = "main"; quad = :real, transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   ypoints = data[2][group][2]
   xpoints_values = xpoints["points"]
   ypoints_values = ypoints["points"]
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
+  data_quad = eval(quad).(data_values)
   xpoints_grid = repmat(xpoints_values', length(ypoints_values), 1)
   ypoints_grid = repmat(ypoints_values, 1, length(xpoints_values))
   data_grid = reshape(data_quad, length(ypoints_values), length(xpoints_values))
@@ -92,11 +105,13 @@ function plot2D(data, group = "main"; quad = "real", transpose = false, normaliz
       ylabel(label_y)
     end
     colorbar()
+    title(get_partial_filename(data[3]["filename"]))
+    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   return xpoints_values, ypoints_values, data_grid
 end
 
-function reshape2D(data, group = "main"; quad = "real", normalize = false)
+function reshape2D(data, group = "main"; quad = :real, normalize = false)
   return plot2D(data, group; quad = quad, normalize = normalize, show_plot = false)
 end
 
@@ -112,31 +127,34 @@ quad: quadrature: real, imag, or abs
 offset: vertical offset between curves
 cals: normalize to 0/1 using metadata
 show_legend: show legend in plot
+fit_name: name of fit function as in fit_###
+fit_param_name: fit parameter of interest (output)
+save_fig: format of the figure to be saved (empty string to disable)
 """
 
-function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = false, show_legend = true, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T")
-  data_values = data[1][group]["Data"]
+function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = false, show_legend = true,
+  cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
   xpoints = data[2][group][2]
   ypoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   ypoints_values = ypoints["points"]
+  Tvec = zeros(length(ypoints_values))
+  dTvec = zeros(length(ypoints_values))
   if isempty(fit_name)
     figure(figsize= (3.5,3))
   else
     figure(figsize = (8,3))
     subplot(1,2,1)
-    Tvec = zeros(length(ypoints_values))
-    dTvec = zeros(length(ypoints_values))
     fit_function = eval(parse(string("fit_", fit_name)))
   end
-  quad_f = Dict("real"=> real, "imag"=> imag, "amp"=> abs, "abs" => abs)
-  data_quad = quad_f[quad].(data_values)
   if cals
-    data_quad = cal_data(data[1], qubit=group)
-    data_quad = quad_f[quad].(data_quad)
+    data_values = cal_data(data[1], qubit=group)
+    data_quad = eval(quad).(data_values)
   else
+    data_values = data[1][group]["Data"]
     # reshape to array of array
-    data_quad = reshape(data_quad, length(xpoints_values), length(ypoints_values))
+    data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
+    data_quad = eval(quad).(data_values)
     data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
   end
   ax = gca()
@@ -158,12 +176,18 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
   end
   xlabel(label_x)
   if cals
-    ylabel("<Z>")
+    ylabel(L"\langle Z\rangle")
   else
-    ylabel("Voltage (a.u.)")
+    ylabel(string(quad, "(Voltage)"))
   end
-  show_legend && (legend())
-
+  if show_legend
+    label_y = ypoints["name"]
+    contains(label_y, "_metadata") && (label_y = split(label_y, "_metadata")[1])
+    if ypoints["unit"] != "None"
+      label_y = string(label_y, " (", ypoints["unit"], ")" )
+    end
+    legend(title = label_y)
+  end
   if ~isempty(fit_name)
     plr = subplot(1,2,2)
     errorbar(ypoints_values, Tvec, dTvec, marker = "o", markersize=4)
@@ -171,22 +195,17 @@ function plot_multi(data, group = "main"; quad = "real", offset = 0.0, cals = fa
     xlabel(ypoints["name"])
     plr[:axis](ymin = 0)
     subplots_adjust(wspace=0.3)
-    return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
   end
-  return xpoints_values[1:length(data_quad[1])], data_quad
+  title(get_partial_filename(data[3]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
 end
 
-function plot2D_matlab(data, quad = "real"; normalize=false)
+function plot2D_matlab(data, quad = :real; normalize=false)
   fig = figure("pyplot_surfaceplot",figsize=(5,3))
   ax = gca()
   ax[:ticklabel_format](useOffset=false)
-  if quad == "real"
-    data_quad = real(data["data"])
-  elseif quad == "imag"
-    data_quad = imag(data["data"])
-  elseif quad == "amp"
-    data_quad = abs.(data["data"])
-  end
+  data_quad = eval(quad).(data["data"])
   if normalize
     data_quad./=data_quad[:,1]
   end
@@ -219,7 +238,6 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
     end
 end
 
-
 function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
   annotate(format(message, vals...),
     xy= coords,
@@ -229,4 +247,13 @@ function annotate_plot(message, vals...; coords = [0.75, 0.9], fontsize = 10.0)
     fontsize=fontsize,
 ha="left",
 va="center")
+end
+
+function get_partial_filename(filename, num_dirs = 2)
+  cur_path = ""
+  for n=1:num_dirs+1
+    filename, filename_dir = splitdir(filename)
+    cur_path = n==1? filename_dir : joinpath(filename_dir, cur_path)
+  end
+  return cur_path
 end
