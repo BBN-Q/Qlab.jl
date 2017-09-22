@@ -52,8 +52,12 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   xlabel(label_x)
   ylabel(label_y)
   title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig))
-  return xpoints_values, data_values, fit_result
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  if isempty(fit_name)
+    return (xpoints_values, data_values)
+  else
+    return (xpoints_values, data_values, fit_result)
+  end
 end
 
 function plot2D(data, group = "main"; quad = :real, transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
