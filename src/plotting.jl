@@ -51,8 +51,8 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   end
   xlabel(label_x)
   ylabel(label_y)
-  title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  title(get_partial_filename(data[3]["file"]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["file"]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   if isempty(fit_name)
     return (xpoints_values, data_values)
   else
@@ -105,8 +105,8 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
       ylabel(label_y)
     end
     colorbar()
-    title(get_partial_filename(data[3]["filename"]))
-    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+    title(get_partial_filename(data[3]["file"]["filename"]))
+    ~isempty(save_fig) && savefig(string(splitext(data[3]["file"]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   return xpoints_values, ypoints_values, data_grid
 end
@@ -196,8 +196,8 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     plr[:axis](ymin = 0)
     subplots_adjust(wspace=0.3)
   end
-  title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  title(get_partial_filename(data[3]["file"]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[3]["file"]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
 end
 

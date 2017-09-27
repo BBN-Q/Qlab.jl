@@ -61,6 +61,7 @@ Load hdf5 data and descriptor in auspex format
 
 FILE STRUCTURE:
 file.hdf5:
+   header/ (with yml settings, if saved)
    group1/
       data/
          axis_1 (contains all tuples visited on this axis)
@@ -83,18 +84,21 @@ function load_auspex_data(filename::AbstractString)
 
     datasets    = Dict{String, Dict{String, Vector{Any}}}()
     descriptors = Dict{String, Vector{Dict{String,Any}}}()
-	header =   Dict{String, String}() #to include measurement/instrument settings, pending https://github.com/BBN-Q/Auspex/pull/134
+	header =   Dict{String, Dict{String, Any}}()
 	#info on file, such as name, ...?
-	header["filename"] = filename
-	#TODO: load header["settings"]
+	header["file"] = Dict("filename" => filename)
 
     h5open(filename, "r") do f
         # Find all of the group names, which will correspond to qubits when
         # using exp_factory inside of auspex. The default group name is simply
         # "main".
         group_names = names(f)
+		#load measurement/instrument settings, pending https://github.com/BBN-Q/Auspex/pull/134
+		if "header" in group_names
+			header["settings"] = read(attrs(f["header"])["settings"])
+		end
 
-        for group_name in group_names
+        for group_name in filter!(name -> name != "header", group_names)
             g = f[group_name]
 
             # Read in the descriptor
