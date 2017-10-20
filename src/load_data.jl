@@ -84,16 +84,16 @@ function load_auspex_data(filename::AbstractString)
 
     datasets    = Dict{String, Dict{String, Vector{Any}}}()
     descriptors = Dict{String, Vector{Dict{String,Any}}}()
-	header =   Dict{String, Dict{String, Any}}()
+	header =   Dict{String, String}()
 	#info on file, such as name, ...?
-	header["file"] = Dict("filename" => filename)
 
+	header["file"] = filename
     h5open(filename, "r") do f
         # Find all of the group names, which will correspond to qubits when
         # using exp_factory inside of auspex. The default group name is simply
         # "main".
         group_names = names(f)
-		#load measurement/instrument settings, pending https://github.com/BBN-Q/Auspex/pull/134
+		#load measurement/instrument settings
 		if "header" in group_names
 			header["settings"] = read(attrs(f["header"])["settings"])
 		end
