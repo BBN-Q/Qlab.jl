@@ -87,7 +87,7 @@ function load_auspex_data(filename::AbstractString)
 	header =   Dict{String, String}()
 	#info on file, such as name, ...?
 
-	header["file"] = filename
+	header["filename"] = filename
     h5open(filename, "r") do f
         # Find all of the group names, which will correspond to qubits when
         # using exp_factory inside of auspex. The default group name is simply
