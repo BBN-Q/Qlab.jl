@@ -28,7 +28,7 @@ qubit: qubit name
 cal0/1: reference measurement for qubit in 0/1
 """
 
-function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = "", cal0::String = "0", cal1::String = "1")
+function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = "", cal0::String = "0", cal1::String = "1", quad = :real)
   if length(collect(keys(data))) == 1
     qubit = collect(keys(data))[1]
   elseif isempty(qubit)
@@ -57,9 +57,9 @@ function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = 
     ind0_s =  s>1? ind0[ind0_edge[s-1]+1:ind0_edge[s]] : ind0[1:ind0_edge[1]]
     ind1_s =  s>1? ind1[ind1_edge[s-1]+1:ind1_edge[s]] : ind1[1:ind1_edge[1]]
     ind_data_s =  s>1? ind_data[ind_data_edge[s-1]+1:ind_data_edge[s]] : ind_data[1:ind_data_edge[1]]
-    data_s = data[qubit]["Data"][ind_data_s]
-    zero_cal = mean(data[qubit]["Data"][ind0_s])
-    one_cal = mean(data[qubit]["Data"][ind1_s])
+    data_s = eval(quad).(data[qubit]["Data"][ind_data_s])
+    zero_cal = mean(eval(quad).(data[qubit]["Data"][ind0_s]))
+    one_cal = mean(eval(quad).(data[qubit]["Data"][ind1_s]))
     scale_factor = -(one_cal - zero_cal)/2
     data_s = (data_s - zero_cal)/scale_factor + 1
     push!(data_out, data_s)

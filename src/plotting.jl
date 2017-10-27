@@ -24,24 +24,23 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
+function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png")
   fig = figure(figsize=(3,3))
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   if cals
-    data_values = cal_data(data[1], qubit=group)[1]
+    data_values = cal_data(data[1], qubit=group, quad = quad)[1]
     label_y = L"\langle Z\rangle"
   else
-    data_values = data[1][group]["Data"]
+    data_values = eval(quad).data[1][group]["Data"]
     label_y = string(quad, "(Voltage)")
   end
-  data_quad = eval(quad).(data_values)
-  xpoints_values = xpoints_values[1:length(data_quad)]
-  plot(xpoints_values, data_quad)
+  xpoints_values = xpoints_values[1:length(data_values)]
+  plot(xpoints_values, data_values)
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
-    fit_result = (fit_function)(xpoints_values, data_quad)
+    fit_result = (fit_function)(xpoints_values, data_values)
     println("Fitting to model: ", fit_result.model_str)
     plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", linewidth=1)
   end
@@ -148,21 +147,19 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     fit_function = eval(parse(string("fit_", fit_name)))
   end
   if cals
-    data_values = cal_data(data[1], qubit=group)
-    data_quad = eval(quad).(data_values)
+    data_values = cal_data(data[1], qubit=group, quad=quad)
   else
     data_values = data[1][group]["Data"]
     # reshape to array of array
     data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
-    data_quad = eval(quad).(data_values)
-    data_quad = [data_quad[:,k] for k in 1:size(data_quad,2)]
+    data_values = [data_values[:,k] for k in 1:size(data_values,2)]
   end
   ax = gca()
-  for k in 1:length(data_quad)
-    xpts = xpoints_values[1:length(data_quad[k])]
-    plot(xpts, data_quad[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
+  for k in 1:length(data_values)
+    xpts = xpoints_values[1:length(data_values[k])]
+    plot(xpts, data_values[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
     if ~isempty(fit_name)
-      fit_result = (fit_function)(xpts, data_quad[k])
+      fit_result = (fit_function)(xpts, data_values[k])
       k==1 && println("Fitting to model: ", fit_result.model_str)
       plot(xpts, fit_result.fit_curve(xpts),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
       Tvec[k] = fit_result.fit_params[fit_param_name]
@@ -198,7 +195,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   end
   title(get_partial_filename(data[3]["filename"]))
   ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
-  return xpoints_values[1:length(data_quad[1])], data_quad, (Tvec, dTvec)
+  return xpoints_values[1:length(data_values[1])], data_values, (Tvec, dTvec)
 end
 
 function plot2D_matlab(data, quad = :real; normalize=false)
