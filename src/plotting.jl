@@ -33,7 +33,7 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
     data_values = cal_data(data[1], qubit=group, quad = quad)[1]
     label_y = L"\langle Z\rangle"
   else
-    data_values = eval(quad).data[1][group]["Data"]
+    data_values = eval(quad).(data[1][group]["Data"])
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
