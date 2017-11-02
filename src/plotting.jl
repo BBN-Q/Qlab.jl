@@ -149,7 +149,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   if cals
     data_values = cal_data(data[1], qubit=group, quad=quad)
   else
-    data_values = data[1][group]["Data"]
+    data_values = eval(quad).(data[1][group]["Data"])
     # reshape to array of array
     data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
     data_values = [data_values[:,k] for k in 1:size(data_values,2)]
