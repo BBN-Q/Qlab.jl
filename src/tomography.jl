@@ -82,7 +82,7 @@ Function to perform least-squares inversion of state tomography data.
 """
 function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
-    obs = Matrix{Complex128}[]
+    obs = Matrix{}[]
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
