@@ -136,7 +136,7 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     corr(k,n) = (k+1)*(k+1)/(n-k-2)
     aicc(e,k,n) = 2 * k + e + corr(k,n)
 
-    aic = aicc(fitresult1.sq_error,k2,length(xpts)) - aicc(fitresult1.sq_error,k1,length(xpts))
+    aic = aicc(fitresult2.sq_error,k2,length(xpts)) - aicc(fitresult1.sq_error,k1,length(xpts))
 
     return [ fitresult1, fitresult2,
             (aic > 0) ? 1 : 2,
