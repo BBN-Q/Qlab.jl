@@ -104,6 +104,42 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
 end
 
 """
+    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+
+Function to perform least-squares inversion of state tomography data.
+
+   + expResults : data array
+   + varmat : covariance matrix for data
+   + measPulseMap : array mapping each experiment to a measurement readout
+     pulse
+   + measOpMap: array mapping each experiment to a measurement channel
+   + measPulseUs : array of unitaries of measurement pulses
+   + measOps : array of measurement operators for each channel
+"""
+function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+    # construct the vector of observables for each experiment
+    obs = Matrix{}[]
+    for ct in 1:length(expResults)
+        U = measPulseUs[measPulseMap[ct]]
+        op = measOps[measOpMap[ct]]
+        push!(obs, U' * op * U)
+    end
+    # in order to constrain the trace to unity, add an identity observerable
+    # and a corresponding value to expResults
+    push!(obs, eye(Complex128, size(measOps[1])...))
+    expResults2 = [expResults; 1]
+    # corresponding variance chosen arbitrarily (it should be very small)
+    varMat2 = [varMat; minimum(varMat)]
+    tomo = FreeLSStateTomo(obs)
+
+    ρest, obj, status = fit(tomo, expResults2, varMat2)
+    if status != :Optimal
+        println("FreeLSStateTomo fit return status: $status")
+    end
+    return ρest
+end
+
+"""
     QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
 
 Function to perform maximum-likelihood quantum state tomography.
@@ -170,6 +206,91 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubit
 
     return rhoLSQ, rhoML
 end
+
+function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubits, nbrPrepPulses, nbrReadoutPulses, nbrCalRepeats=2)
+
+    measOps = Matrix{Float64}[]
+    tomoData = Float64[]
+    varData = Float64[]
+    numMeas = length(data)
+    numPreps = nbrPrepPulses^nbrQubits
+    numExps = numPreps*numMeas*nbrReadoutPulses^nbrQubits
+
+    for data_q in values(data)
+        # Average over calibration repeats
+        calData = real(data_q["Data"][end-nbrCalRepeats*(2^nbrQubits )+1:end])
+        avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), 1)
+        # Pull out the calibrations as diagonal measurement operators
+        push!(measOps, diagm(avgCalData[:]))
+
+        #The data to invert
+        append!(tomoData, real(data_q["Data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
+
+        #variance
+        append!(varData, real(data_q["Variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
+    end
+
+    #weightMat = 1./sqrt(varData)
+    #weightMat/=sum(weightMat)
+    # Map each experiment to the appropriate readout pulse
+    measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
+    measPulseMap = repeat(1:nbrPulses^nbrQubits, outer=numMeas)
+    # Use a helper to get the measurement unitaries.
+    measPulseUs = tomo_gate_set(nbrQubits, nbrPulses)
+    prepPulseUs = measPulseUs # for now, assume that preps and meas Us are the same
+
+    # Now call the inversion routines
+    # First least squares
+    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps)
+
+    # Now constrained maximum-likelihood
+    #rhoML = QPT_ML(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
+    return choiLSQ#, choiML
+end
+
+"""
+    QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+
+Function to perform least-squares inversion of process tomography data.
+
+   + expResults : data array
+   + varmat : covariance matrix for data
+   + measPulseMap : array mapping each experiment to a measurement readout
+     pulse
+   + measOpMap: array mapping each experiment to a measurement channel
+   + prepPulseUs : array of unitaries of preparation pulses
+   + measPulseUs : array of unitaries of measurement pulses
+   + measOps : array of measurement operators for each channel
+"""
+function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps)
+    # construct the vector of observables for each experiment
+    obs = Matrix{}[]
+    for ct in 1:length(expResults)
+        Uprep = prepPulseUs[prep_ct]
+        Umeas = measPulseUs[measPulseMap[meas_ct]]
+        rhoIn = zeros(d,d)
+        rhoIn[1,1] = 1
+        rhoIn = Uprep * rhoIn * Uprep'
+        op = measOps[measOpMap[meas_ct]]
+        push!(obs, Umeas' * op * Umeas)
+        # roll counters
+    end
+    # in order to constrain the trace to unity, add an identity observerable
+    # and a corresponding value to expResults
+    push!(obs, eye(Complex128, size(measOps[1])...))
+    expResults2 = [expResults; 1]
+    # corresponding variance chosen arbitrarily (it should be very small)
+    varMat2 = [varMat; minimum(varMat)]
+    tomo = FreeLSStateTomo(obs)
+
+    ρest, obj, status = fit(tomo, expResults2, varMat2)
+    if status != :Optimal
+        println("FreeLSStateTomo fit return status: $status")
+    end
+    return ρest
+end
+
+
 
 """
     rho2pauli(rho)
