@@ -82,7 +82,7 @@ Function to perform least-squares inversion of state tomography data.
 """
 function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
-    obs = Matrix{Complex128}[]
+    obs = Matrix{}[]
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
@@ -118,7 +118,7 @@ Function to perform maximum-likelihood quantum state tomography.
 """
 function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
-    obs = Matrix{Complex128}[]
+    obs = Matrix{}[]
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
@@ -133,27 +133,25 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
     return ρest
 end
 
-analyzeStateTomo(data::Dict{String,Any}, nbrQubits, nbrPulses, nbrCalRepeats=2) =
-    analyzeStateTomo([data], nbrQubits, nbrPulses, nbrCalRepeats)
-function analyzeStateTomo(data::Vector{Dict{String,Any}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
+function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
 
     measOps = Matrix{Float64}[]
     tomoData = Float64[]
     varData = Float64[]
     numMeas = length(data)
 
-    for ct = 1:numMeas
+    for data_q in values(data)
         # Average over calibration repeats
-        calData = real(data[ct]["data"][end-nbrCalRepeats*(2^nbrQubits)+1:end])
+        calData = real(data_q["Data"][end-nbrCalRepeats*(2^nbrQubits )+1:end])
         avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), 1)
         # Pull out the calibrations as diagonal measurement operators
         push!(measOps, diagm(avgCalData[:]))
 
         #The data to invert
-        append!(tomoData, real(data[ct]["data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
+        append!(tomoData, real(data_q["Data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
 
         #variance
-        append!(varData, data[ct]["realvar"][1:end-nbrCalRepeats*(2^nbrQubits)] )
+        append!(varData, real(data_q["Variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
     end
     # Map each experiment to the appropriate readout pulse
     measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
