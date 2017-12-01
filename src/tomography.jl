@@ -88,43 +88,7 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
         op = measOps[measOpMap[ct]]
         push!(obs, U' * op * U)
     end
-    # in order to constrain the trace to unity, add an identity observerable
-    # and a corresponding value to expResults
-    push!(obs, eye(Complex128, size(measOps[1])...))
-    expResults2 = [expResults; 1]
-    # corresponding variance chosen arbitrarily (it should be very small)
-    varMat2 = [varMat; minimum(varMat)]
-    tomo = FreeLSStateTomo(obs)
-
-    ρest, obj, status = fit(tomo, expResults2, varMat2)
-    if status != :Optimal
-        println("FreeLSStateTomo fit return status: $status")
-    end
-    return ρest
-end
-
-"""
-    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
-
-Function to perform least-squares inversion of state tomography data.
-
-   + expResults : data array
-   + varmat : covariance matrix for data
-   + measPulseMap : array mapping each experiment to a measurement readout
-     pulse
-   + measOpMap: array mapping each experiment to a measurement channel
-   + measPulseUs : array of unitaries of measurement pulses
-   + measOps : array of measurement operators for each channel
-"""
-function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
-    # construct the vector of observables for each experiment
-    obs = Matrix{}[]
-    for ct in 1:length(expResults)
-        U = measPulseUs[measPulseMap[ct]]
-        op = measOps[measOpMap[ct]]
-        push!(obs, U' * op * U)
-    end
-    # in order to constrain the trace to unity, add an identity observerable
+    # in order to constrain the trace to unity, add an identity observable
     # and a corresponding value to expResults
     push!(obs, eye(Complex128, size(measOps[1])...))
     expResults2 = [expResults; 1]
@@ -241,7 +205,7 @@ function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQub
 
     # Now call the inversion routines
     # First least squares
-    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps)
+    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits)
 
     # Now constrained maximum-likelihood
     #rhoML = QPT_ML(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
@@ -262,30 +226,40 @@ Function to perform least-squares inversion of process tomography data.
    + measPulseUs : array of unitaries of measurement pulses
    + measOps : array of measurement operators for each channel
 """
-function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps)
+function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits)
+    d = 2^nbrQubits
     # construct the vector of observables for each experiment
     obs = Matrix{}[]
+    preps = Matrix{}[]
     for ct in 1:length(expResults)
         Uprep = prepPulseUs[prep_ct]
         Umeas = measPulseUs[measPulseMap[meas_ct]]
         rhoIn = zeros(d,d)
         rhoIn[1,1] = 1
-        rhoIn = Uprep * rhoIn * Uprep'
         op = measOps[measOpMap[meas_ct]]
+        push!(preps, Uprep * rhoIn * Uprep')
         push!(obs, Umeas' * op * Umeas)
-        # roll counters
+        # Roll the counters
+        meas_ct+=1
+        if meas_ct>length(Umeas)
+            meas_ct=1
+            prep_ct+=1
+        end
+        if prep_ct>length(Uprep)
+            prep_ct=1
+        end
     end
-    # in order to constrain the trace to unity, add an identity observerable
-    # and a corresponding value to expResults
-    push!(obs, eye(Complex128, size(measOps[1])...))
-    expResults2 = [expResults; 1]
-    # corresponding variance chosen arbitrarily (it should be very small)
-    varMat2 = [varMat; minimum(varMat)]
-    tomo = FreeLSStateTomo(obs)
+    # # in order to constrain the trace to unity, add an identity observable
+    # # and a corresponding value to expResults
+    # push!(obs, eye(Complex128, size(measOps[1])...))
+    # expResults2 = [expResults; 1]
+    # # corresponding variance chosen arbitrarily (it should be very small)
+    # varMat2 = [varMat; minimum(varMat)]
+    tomo = LSProcessTomo(obs, preps)
 
-    ρest, obj, status = fit(tomo, expResults2, varMat2)
+    ρest, obj, status = fit(tomo, expResults, varMat)
     if status != :Optimal
-        println("FreeLSStateTomo fit return status: $status")
+        println("LSProcessTomo fit return status: $status")
     end
     return ρest
 end
