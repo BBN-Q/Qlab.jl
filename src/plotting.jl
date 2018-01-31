@@ -30,7 +30,7 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
   if cals
-    data_values = cal_data(data[1], qubit=group, quad = quad)[1]
+    data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
     label_y = L"\langle Z\rangle"
   else
     data_values = eval(quad).(data[1][group]["Data"])
@@ -147,7 +147,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     fit_function = eval(parse(string("fit_", fit_name)))
   end
   if cals
-    data_values = cal_data(data[1], qubit=group, quad=quad)
+    data_values = cal_data(data[1], qubit=group, quad=quad, cal0=cal0, cal1=cal1)
   else
     data_values = eval(quad).(data[1][group]["Data"])
     # reshape to array of array
