@@ -224,3 +224,88 @@ function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_
   end
   return smoothed_mat, fidelity_mat
 end
+
+
+"""
+Load multi-qubit calibration data (e.g., measurement results for computational states)
+"""
+function load_ss(qubits, group = "shots")
+    shots = Dict()
+    for (ct, qubit) in enumerate(reverse(qubits)) #from LSB to MSB
+      shots[qubit] = Dict()
+      metadata_key = []
+      for k in keys(data[qubit*"-main"])
+        if contains(k, "metadata")
+          push!(metadata_key, k)
+        end
+      end
+      if length(metadata_key) != 1
+        error("Invalid metadata")
+      end
+      data_out = []
+      for m = 0:2^length(qubits)-1
+        label = bin(m, length(qubits))
+        ind = find(x -> x==parse(UInt8, label, 2), data[qubit*"-"*group][metadata_key[1]])
+        shots[qubit][label] = real(data[qubit*"-"*group]["Data"][ind])
+      end
+    end
+    return shots
+end
+
+"""
+Digitize an N-qubit measurement with independent single-qubit thresholds. Calculate assignment probabilities. For N=2, you
+can use single_shot_fidelities_2D and related functions instead, to optimize assingment probabilities in 2D.
+shots: single-shots (loaded by load_ss)
+qubits: list/tuple of qubit names
+thresholds: list of digitization threshold (determined by digitize or get_fidelity)
+Returns a dictionary (with computational states as keys and counts as values) and the corresponding matrix with
+assignment probabilities
+"""
+function bin_N(shots, qubits, thresholds)
+    nshots = length(shots[qubits[1]][bin(0,length(qubits))])
+    nstates = 2^length(qubits)
+    keys = []
+    for m = 0:nstates-1
+        label = bin(m, length(qubits))
+        keys = push!(keys, label)
+    end
+    assignmat = Dict()
+    for key in keys
+        assignmat[key] = zeros(nshots)
+        for n = 1:nshots
+            for q = 1:length(qubits)
+                assignmat[key][n] += (nstates-q))*(shots[qubits[q]][key][n] < thresholds[q])
+            end
+        end
+    end
+    probmat = zeros(nstates,nstates);
+    for j in 1:nstates
+        for k in 1:nstates
+            probmat[j, k] = countmap(assignmat[bin(j-1,3)])[k-1]/nshots
+        end
+    end
+    return assignmat, probmat
+end
+
+"""
+Get single-qubit assingment probabilities as a function of the other 2-qubit states. Useful to assess readout
+crosstalk.
+"""
+#TODO: generalize for N>3 qubits
+function get_1q_fid_3q(probmat)
+  inds= 1:4
+  inds2 = [1,2,5,6]
+  inds3 = 1:2:7
+
+  pq1_0 = []; pq1_1 = []; pq2_0 = []; pq2_1 = []; pq3_0 = []; pq3_1 = []
+
+  for k in 1:4
+      push!(pq1_0, sum(probmat[k,inds]/nshots))
+      push!(pq1_1, sum(probmat[k+4,inds+4]/nshots))
+      push!(pq2_0, sum(probmat[inds2[k],inds2]/nshots))
+      push!(pq2_1, sum(probmat[inds2[k]+2,inds2+2]/nshots))
+      push!(pq3_0, sum(probmat[inds3[k], inds3]/nshots))
+      push!(pq3_1, sum(probmat[inds3[k]+1, inds3+1]/nshots))
+  end
+  return [pq1_0, pq1_1, pq2_0, pq2_1, pq3_0, pq3_1]
+end
