@@ -274,7 +274,7 @@ function bin_N(shots, qubits, thresholds)
         assignmat[key] = zeros(nshots)
         for n = 1:nshots
             for q = 1:length(qubits)
-                assignmat[key][n] += (nstates-q))*(shots[qubits[q]][key][n] < thresholds[q])
+                assignmat[key][n] += (2^(length(qubits)-q))*(shots[qubits[q]][key][n] < thresholds[q])
             end
         end
     end
