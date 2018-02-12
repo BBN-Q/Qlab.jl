@@ -76,6 +76,17 @@ function fit_t1(xpts, ypts, yvars=[])
               "a * exp(-t/T) + b", yvars=yvars)
 end
 
+""" `fit_double_exp(xpts, ypts, yvars=[])`
+Fit to double exponential decay y = a exp(-t/Ta) + b exp(-t/Tb) + c.
+"""
+function fit_double_exp(xpts, ypts, yvars=[])
+    T1_fit_dict(p) = Dict("a" => p[1], "Ta" => p[2], "b" => p[3], "Tb" => p[4], "c" => p[5])
+    model(t, p) = p[1]*exp.(-t ./ p[2]) + p[3]*exp.(-t ./ p[4]) + p[5]
+    p_guess = [0.5*(ypts[1]-ypts[end]), xpts[end]/3., 0.5*(ypts[1]-ypts[end]), xpts[end]/3., ypts[end]]
+    return generic_fit(xpts, ypts, model, p_guess, T1_fit_dict,
+              "a * exp(-t/Ta) + b * exp(-t/Tb) + c", yvars=yvars)
+end
+
 """ `fit_line(xpts, ypts, yvars=[])`
 Fit to linear model y = ax + b.
 """
