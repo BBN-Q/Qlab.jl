@@ -1,5 +1,5 @@
 using HDF5, JSON, Compat
-using DataFrames
+using DataFrames, YAML
 
 """
     load_data(filename)
@@ -84,7 +84,7 @@ function load_auspex_data(filename::AbstractString)
 
     datasets    = Dict{String, Dict{String, Vector{Any}}}()
     descriptors = Dict{String, Vector{Dict{String,Any}}}()
-	header =   Dict{String, String}()
+	header =   Dict{String, Any}()
 	#info on file, such as name, ...?
 
 	header["filename"] = filename
@@ -95,7 +95,7 @@ function load_auspex_data(filename::AbstractString)
         group_names = names(f)
 		#load measurement/instrument settings
 		if "header" in group_names
-			header["settings"] = read(attrs(f["header"])["settings"])
+			header["settings"] = YAML.load(read(attrs(f["header"])["settings"]))
 		end
 
         for group_name in filter!(name -> name != "header", group_names)
