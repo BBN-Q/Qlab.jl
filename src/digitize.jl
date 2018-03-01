@@ -229,7 +229,7 @@ end
 """
 Load multi-qubit calibration data (e.g., measurement results for computational states)
 """
-function load_ss(qubits, group = "shots")
+function load_ss(data, qubits, group = "shots")
     shots = Dict()
     for (ct, qubit) in enumerate(reverse(qubits)) #from LSB to MSB
       shots[qubit] = Dict()
