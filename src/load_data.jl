@@ -1,4 +1,4 @@
-using HDF5, JSON, Compat, CSV
+using HDF5, JSON, Compat, YAML, CSV
 
 """
     load_data(filename)
@@ -177,7 +177,7 @@ end
 Load latest data file, or ind_from_last files before the latest.
 """
 function load_latest_data(logpath::AbstractString, ind_from_last::Int = 0)
-	df = CSV.read(logpath)
+	df = CSV.read(logpath, delim = "\t")
 	@assert ind_from_last < length(df.columns[1]) "Not enough data files in the history."
 	filename = df.columns[1][end-ind_from_last]
 	load_auspex_data(filename)
