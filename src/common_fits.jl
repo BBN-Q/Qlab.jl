@@ -213,7 +213,7 @@ function analyzeRB(ypts, seqlengths; purity=false)
         data = vec(sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2))
     else
         # otherwise convert <Z> to prob of 0
-        data = .5 * (1 - vec(ypts))
+        data = .5 * (1 + vec(ypts))
     end
     model(n, p) = p[1] * (1-p[2]).^n + p[3]
     fit = curve_fit(model, xpts-purity, data, [0.5, .01, 0.5]) #fit to ...^(n-1) for purity
@@ -226,4 +226,14 @@ function analyzeRB(ypts, seqlengths; purity=false)
         @printf("ϵ = %0.3f%%\n", fit.param[2]/2*100)
     end
     return (xpts, data, fit.param, fit_curve, errors)
+end
+
+"""`fit_RB(xpts, ypts, yvars=[])`
+Fit to RB decay a*(1-b)^x + c
+"""
+function fit_RB(xpts, ypts, yvars=[])
+    RB_fit_dict(p) = Dict("a" => p[1], "b" => p[2], "c" => p[3])
+    model(n, p) = p[1] * (1-p[2]).^n + p[3]
+    p_guess = [0.5, .01, 0.5]
+    return generic_fit(xpts, ypts, model, p_guess, RB_fit_dict, "a * exp(-n/b) + c", yvars=yvars)
 end
