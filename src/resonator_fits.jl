@@ -163,7 +163,7 @@ function fit_phase(freq, data)
   """
   model(x, p) = p[1] + 2. * slope * atan.(2 * p[2] *(1. - x / p[3]))
   ϕ = unwrap(angle.(data))
-  #first some initial guesses
+  #guesses for initial parameters
   idx = indmin(abs.(ϕ - mean(ϕ)))
   if mean(ϕ[1:9]) > mean(ϕ[end-9:end])
     j = findfirst(x -> x - ϕ[idx] < π/2., ϕ)
@@ -174,14 +174,14 @@ function fit_phase(freq, data)
     k = findfirst(x -> x - ϕ[idx] > -π/2., ϕ)
     slope = -1
   end
-  #If the initial complex S21 data is very close to a circle, there is no need to
-  #calibrate out cable delay so this function will fail. Instead just return a "naive"
-  #guess and move on.
-  if j == 0 || k == 0
-    return freq[idx], 0, 0
-  end
   Qguess = freq[idx]/abs.(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
+  χ = sum(fit.resid.^2./ϕ)
+
+  @debug "Frequency vs. Phase fit found: f₀ = $(fit.param[3]), Q = $(fit.param[2]), θ₀ = $(fit.param[3])"
+  @debug "Phase fit χ² = $(χ)"
+  @assert χ < 1 "Could not fit phase: χ² = $(χ)"
+
   return fit.param[3], fit.param[2], fit.param[1]
 end
 
