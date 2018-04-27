@@ -1,6 +1,7 @@
 using LsqFit
 using Optim
 using MicroLogging
+using PyPlot
 
 #Fitting a biased Lorentzian to amplitude data.
 """
@@ -93,7 +94,7 @@ end
 struct CircleFitResult
   fit_params::CircleFitParams
   sq_error::Float64
-  Nσ::Float64
+  SNR::Float64
   errors::CircleFitParams
   fit_curve::Function
 end
@@ -127,7 +128,7 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
 
   χ2 = sum(R.^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
-  @assert χ2 < 1 "Could not fit circle to delay-corrected data. χ² = $(χ2)."
+  #@assert χ2 < 10 "Could not fit circle to delay-corrected data. χ² = $(χ2)."
   @debug "Fit circle to delay corrected data with χ² = $(χ2)."
 
   #Translate circle to origin and fit overall phase delay and scaling
@@ -146,9 +147,15 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   Sc = Sp .* exp.(-1im * α) / A
   Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
 
-  χ2 = sum(R.^2 - (real(Sc) - xc).^2 - (imag(Sc) - yc).^2)
-  @assert χ2 < 1 "Could not fit circle to calibrated data. χ² = $(χ2)."
+  χ2 = sum(Rc.^2 - (real(Sc) - xcc).^2 - (imag(Sc) - ycc).^2)
+  #@assert χ2 < 10 "Could not fit circle to calibrated data. χ² = $(χ2)."
   @debug "Fit circle to calibrated data with χ² = $(χ2)."
+
+  N = length(data)
+  r = sqrt.((real(Sc) - xcc).^2 + (imag(Sc) - ycc).^2)
+  SNR = Rc / sqrt(sum((r - Rc).^2)/(N-1))
+
+  @debug "Data has an SNR of $(SNR)."
 
   ϕ = -asin(ycc/Rc)
   @debug "Found impedance mismatch angle: ϕ = $(ϕ)"
@@ -157,26 +164,54 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   f0, Qr, _ = fit_phase(freq, Sct)
 
   Qc_cplx = Qr/(2 * Rc * exp(-1im * ϕ))
-  Qi = 1/(1/Qr - real(1/Qc))
+  Qi = 1/(1/Qr - real(1/Qc_cplx))
   Qc = 1/abs(1/Qc_cplx)
 
   @debug "Found quality factors: Qᵢ = $(Qi), Qc = $(Qc)."
 
-
   fit_params = CircleFitParams(f0, Qi, Qc, ϕ, τ, α, A)
-  fit_errors = CircleFitParams(0, 0, 0, 0, 0, 0, 0)
 
-  χ = sum(abs.(data - lorentzian_resonance(fit_params, freq)).^2)
-  dof = length(freq) - 7
-  Nσ = χ/2dof - dof/sqrt(2dof)
-  @debug "Circle fit found χ₂ = $(χ), Nσ = $(Nσ)"
+  refined_params, errors = refine_circle_fit(freq, data, fit_params)
 
-  return CircleFitResult(fit_params,
+  χ0 = sum(abs.(data - lorentzian_resonance(fit_params, freq)).^2)
+  χ1 = sum(abs.(data - lorentzian_resonance(refined_params, freq)).^2)
+  @debug "Circle fit found χ² = $(χ0), refined to χ² = $(χ1)"
+
+  if χ0 > χ1
+    params = refined_params
+    χ = χ1
+  else
+    params = fit_params
+    χ = χ0
+  end
+
+  return CircleFitResult(params,
                           χ,
-                          Nσ,
-                          fit_errors,
+                          SNR,
+                          errors,
                           x->lorentzian_resonance(fit_params, x))
 end
+
+function refine_circle_fit(freq, data, fit_params)
+  """Refine circle fit and get errors using LsqFit.jl"""
+
+  model(x, p) = abs.(lorentzian_resonance(p, x))
+
+  initial_guess = [fit_params.f0, fit_params.Qi, fit_params.Qc,
+                  fit_params.ϕ, fit_params.τ, fit_params.α, fit_params.A]
+
+  fit = curve_fit(model, freq, abs.(data), initial_guess)
+  errors = estimate_errors(fit)
+
+  refined_params = CircleFitParams(fit.param[1], fit.param[2], fit.param[3],
+                fit.param[4], fit.param[5], fit.param[6], fit.param[7])
+
+  errs = CircleFitParams(errors[1], errors[2], errors[3],
+                errors[4], errors[5], errors[6], errors[7])
+
+  return (refined_params, errs)
+end
+
 
 function fit_phase(freq, data)
   """Fit phase of resonance.
@@ -203,11 +238,11 @@ function fit_phase(freq, data)
   end
   Qguess = freq[idx]/abs.(freq[j] - freq[k])
   fit = curve_fit(model, freq, ϕ, [ϕ[idx], Qguess, freq[idx]])
-  χ = sum(fit.resid.^2./ϕ)
+  χ = sum(fit.resid.^2)
 
   @debug "Frequency vs. Phase fit found: f₀ = $(fit.param[3]), Q = $(fit.param[2]), θ₀ = $(fit.param[3])"
   @debug "Phase fit χ² = $(χ)"
-  @assert χ < 1 "Could not fit phase: χ² = $(χ)"
+  #@assert χ < 10 "Could not fit phase: χ² = $(χ)"
 
   return fit.param[3], fit.param[2], fit.param[1]
 end
@@ -235,7 +270,7 @@ function fit_delay(freq, data)
 
   χ2 = delay_model(τ)
   @debug "Cable delay fit found: $(τ) with χ² = $(χ2)."
-  @assert χ2 < 1 "Could not calibrate out cable delay: χ² = $(χ2)."
+ #@assert χ2 < 10 "Could not calibrate out cable delay: χ² = $(χ2)."
 
   return τ
 end
@@ -254,7 +289,7 @@ function lorentzian_resonance(p::CircleFitParams, f)
 end
 
 function lorentzian_resonance(p::Array, f)
-  return lorentzian_resonance(CircleFiParams(p[1], p[2], p[3], p[4], p[5], p[6], p[7]), f)
+  return lorentzian_resonance(CircleFitParams(p[1], p[2], p[3], p[4], p[5], p[6], p[7]), f)
 end
 
 function simulate_resonance(kwargs...)
