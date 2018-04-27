@@ -221,8 +221,9 @@ function lorentzian_resonance(p::CircleFitResult, f)
 
   See appendix E of Gao 2008 p. 155 Eq E.1
   """
-  Q = 1 ./ (1/p.Qi + real.(1 ./ p.Qc*exp.(-1im*p.ϕ)) );
-  return p.A*exp(1im*p.α).*exp.(-2π*1im*f*p.τ).*(1 - (Q/abs(p.Qc))*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
+  Qc_cplx = 1 / ((1/p.Qc)*exp(1im*p.ϕ))
+  Q = 1/(1/p.Qi + real(1/Qc_cplx))
+  return p.A*exp(1im*p.α).*exp.(-2π*1im*f*p.τ).*(1 - (Q/p.Qc)*exp(1im*p.ϕ)./(1 + 2*1im*Q*(f/p.f0 - 1)));
 end
 
 function lorentzian_resonance(p::Array, f)
