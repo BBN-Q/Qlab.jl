@@ -112,41 +112,48 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   kwdict = Dict(kwargs)
 
   #Fit to cable delay
-  if haskey(kwdict, :τ)
-    τ = kwdict[:τ]
-  else
-    τ = fit_delay(freq, data)
-  end
+  haskey(kwdict, :τ) ? τ = kwdict[:τ] : τ = fit_delay(freq, data)
+
   Sp = exp.(1im * 2. * π * freq * τ) .* data
   #Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
-  χ2 = sum(R^2 - (real.(Sp) - xc).^2 - (imag.(Sp) - yc).^2)
-  @assert χ2 < 5 "Could not calibrate out cable delay: χ^2 = $χ2."
+
+  χ2 = sum(R.^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
+  @assert χ2 < 1 "Could not fit circle to delay-corrected data. χ² = $(χ2)."
+  @debug "Fit circle to delay corrected data with χ² = $(χ2)."
+
   #Translate circle to origin and fit overall phase delay and scaling
   St = Sp - (xc + 1im * yc)
   _, _, θ = fit_phase(freq, St)
   #find f → ∞ point -- this part seems fragile...
-  P = xc + R*cos(θ + π) + 1im*(yc + R*sin(θ + π))
-  if haskey(kwdict, :A)
-    A = kwdict[:A]
-  else
-    A = abs(P)
-  end
-  if haskey(kwdict, :α)
-    α = kwdict[:α]
-  else
-    α = angle(P)
-  end
+  β = mod(θ + π, π)
+  P = xc + R*cos(β) + 1im*(yc + R*sin(β))
+
+  @debug "Found scale parameters A = $(abs(P)), α = $(angle(P))."
+
+  haskey(kwdict, :A) ? A = kwdict[:A] : A = abs(P)
+  haskey(kwdict, :α) ? α = kwdict[:α] : α = angle(P)
+
   #Calibrate out α, A and get impedance mismatch angle
   Sc = Sp .* exp.(-1im * α) / A
   Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
-  ϕ = -atan2(ycc, 1 - xcc)
+
+  χ2 = sum(R.^2 - (real(Sc) - xc).^2 - (imag(Sc) - yc).^2)
+  @assert χ2 < 1 "Could not fit circle to calibrated data. χ² = $(χ2)."
+  @debug "Fit circle to calibrated data with χ² = $(χ2)."
+
+  ϕ = -asin(ycc/Rc)
+  @debug "Found impedance mismatch angle: ϕ = $(ϕ)"
   #Final fit to phase to extract resonant frequency and Q
   Sct = Sc - (xcc + 1im * ycc)
   f0, Qr, _ = fit_phase(freq, Sct)
-  Qc_cplx = Qr * exp.(-1im * ϕ)/(2 * Rc)
-  Qc = 1 / real(1 / Qc_cplx)
-  Qi = 1/(1/Qr - 1/Qc)
+
+  Qc_cplx = Qr/(2 * Rc * exp(-1im * ϕ))
+  Qi = 1/(1/Qr - real(1/Qc))
+  Qc = 1/abs(1/Qc_cplx)
+
+  @debug "Found quality factors: Qᵢ = $(Qi), Qc = $(Qc)."
+
   return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
 
 end
