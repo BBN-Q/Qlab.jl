@@ -1,5 +1,6 @@
 using LsqFit
 using Optim
+using MicroLogging
 
 #Fitting a biased Lorentzian to amplitude data.
 """
@@ -88,7 +89,6 @@ struct CircleFitResult
   α
   A
 end
-
 
 #Fitting to the resonance circle of a quarter-wave resonator
 function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}}; kwargs...)
@@ -202,9 +202,15 @@ function fit_delay(freq, data)
   ϕ = unwrap(angle.(data))
   linfit(x,p) = p[1] + x * p[2]
   fit = curve_fit(linfit, freq, ϕ, [mean(ϕ), 0])
-  ϕ0 = fit.param[2] / (2 * π)
-  result = optimize(delay_model, -abs(ϕ0), abs(ϕ0)) #would prefer 1D gradient descent
-  return Optim.minimizer(result)
+  ϕ0 = fit.param[2]
+  result = optimize(delay_model, -1.5*abs(ϕ0), 1.5*abs(ϕ0)) #would prefer 1D gradient descent
+  τ = Optim.minimizer(result)
+
+  χ2 = delay_model(τ)
+  @debug "Cable delay fit found: $(τ) with χ² = $(χ2)."
+  @assert χ2 < 1 "Could not calibrate out cable delay: χ² = $(χ2)."
+
+  return τ
 end
 
 
