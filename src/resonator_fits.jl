@@ -71,7 +71,7 @@ function initial_guess_blorentz(xpts, ypts)
   return [a, b, c, d, e];
 end
 
-struct CircleFitResult
+struct CircleFitParams
   """Container for the result of a circle fit.
     f0: Resonator center frequency.
     Qi: Resonator internal quality factor.
@@ -88,6 +88,14 @@ struct CircleFitResult
   τ
   α
   A
+end
+
+struct CircleFitResult
+  fit_params::CircleFitParams
+  sq_error::Float64
+  Nσ::Float64
+  errors::CircleFitParams
+  fit_curve::Function
 end
 
 #Fitting to the resonance circle of a quarter-wave resonator
@@ -154,8 +162,20 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
 
   @debug "Found quality factors: Qᵢ = $(Qi), Qc = $(Qc)."
 
-  return CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
 
+  fit_params = CircleFitParams(f0, Qi, Qc, ϕ, τ, α, A)
+  fit_errors = CircleFitParams(0, 0, 0, 0, 0, 0, 0)
+
+  χ = sum(abs.(data - lorentzian_resonance(fit_params, freq)).^2)
+  dof = length(freq) - 7
+  Nσ = χ/2dof - dof/sqrt(2dof)
+  @debug "Circle fit found χ₂ = $(χ), Nσ = $(Nσ)"
+
+  return CircleFitResult(fit_params,
+                          χ,
+                          Nσ,
+                          fit_errors,
+                          x->lorentzian_resonance(fit_params, x))
 end
 
 function fit_phase(freq, data)
@@ -221,7 +241,7 @@ function fit_delay(freq, data)
 end
 
 
-function lorentzian_resonance(p::CircleFitResult, f)
+function lorentzian_resonance(p::CircleFitParams, f)
   """
   Return a resonance model in S21 amplitude over the range [x] and with
   parameters [p].
@@ -234,7 +254,7 @@ function lorentzian_resonance(p::CircleFitResult, f)
 end
 
 function lorentzian_resonance(p::Array, f)
-  return lorentzian_resonance(CircleFitResult(p[1], p[2], p[3], p[4], p[5], p[6], p[7]), f)
+  return lorentzian_resonance(CircleFiParams(p[1], p[2], p[3], p[4], p[5], p[6], p[7]), f)
 end
 
 function simulate_resonance(kwargs...)
@@ -253,7 +273,7 @@ function simulate_resonance(kwargs...)
   A = 0.23
   df = f0/Q;
   freqs = linspace(f0 - 6*df, f0 + 6*df, 401)
-  p = CircleFitResult(f0, Qi, Qc, ϕ, τ, α, A)
+  p = CircleFitParams(f0, Qi, Qc, ϕ, τ, α, A)
   data = lorentzian_resonance(p, freqs);
   # add some noise
   rand_phase = 2π*0.001*randn(length(freqs));
