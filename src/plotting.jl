@@ -159,11 +159,15 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     xpts = xpoints_values[1:length(data_values[k])]
     plot(xpts, data_values[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
     if ~isempty(fit_name)
-      fit_result = (fit_function)(xpts, data_values[k])
-      k==1 && println("Fitting to model: ", fit_result.model_str)
-      plot(xpts, fit_result.fit_curve(xpts),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
-      Tvec[k] = fit_result.fit_params[fit_param_name]
-      dTvec[k] = fit_result.errors[fit_param_name]
+      try
+          fit_result = (fit_function)(xpts, data_values[k])
+          k==1 && println("Fitting to model: ", fit_result.model_str)
+          plot(xpts, fit_result.fit_curve(xpts),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+          Tvec[k] = fit_result.fit_params[fit_param_name]
+          dTvec[k] = fit_result.errors[fit_param_name]
+      catch
+          Tvec[k] = NaN
+      end
     end
   end
   label_x = xpoints["name"]
