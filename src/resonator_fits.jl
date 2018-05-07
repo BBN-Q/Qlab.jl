@@ -2,6 +2,7 @@ using LsqFit
 using Optim
 using MicroLogging
 using PyPlot
+using Roots
 
 #Fitting a biased Lorentzian to amplitude data.
 """
@@ -259,8 +260,10 @@ function fit_delay(freq, data)
   function delay_model(x)
     ddata = data .* exp.(2. * π * 1im * freq * x)
     R, xc, yc = fit_circle(real.(ddata), imag.(ddata))
-    return sum(R.^2 - (real.(ddata) - xc).^2 - (imag.(ddata) - yc).^2)
+    d = sqrt.((real.(ddata) - xc).^2 + (imag.(ddata) - yc).^2) - R
+    return sum(d.^2)
   end
+
   ϕ = unwrap(angle.(data))
   linfit(x,p) = p[1] + x * p[2]
   fit = curve_fit(linfit, freq, ϕ, [mean(ϕ), 0])
@@ -318,7 +321,7 @@ function simulate_resonance(kwargs...)
   return freqs, data, p
 end
 
-function fit_circle(x, y)
+function fit_circle(x, y; refine=false)
   """Algebraic fit of (x,y) points to a circle. See:
       N. Chernov and C. J. Lesort, Least Squares Fitting of Circles,
         Journal of Mathematical Imaging and Vision, 23: 239-252, 2005.
@@ -344,14 +347,31 @@ function fit_circle(x, y)
   Myz = sum(y .* z)
   M = [Mzz Mxz Myz Mz; Mxz Mxx Mxy Mx; Myz Mxy Myy My; Mz Mx My n];
   B = [0 0 0 -2; 0 1 0 0; 0 0 1 0; -2 0 0 0]
-  D, V = eig(M, B)
-  D[D .< eps()] = NaN
-  ev = V[:, indmin(D)]
+
+  F(η) = det(M - η*B)
+  #We use Newton's method to guarantee convergence to the smallest positive eigenvalue
+  ηs = newton(F, 0.0)
+  ev = nullspace(M - ηs*B)
+
   xc = -ev[2]/2/ev[1]
   yc = -ev[3]/2/ev[1]
   R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4])/2./abs(ev[1])
-  if abs(xc - yc) < eps()
-    warn("The moment matrix of the circle fit has repeated eigenvalues; the fit has probably failed.")
-  end
+
   return R, xc, yc
+end
+
+function fit_circle_LM(x, y, initial_guess)
+    """Iterative algorithm for refining a circle fit, using radial weighting."""
+
+    function resid(p)
+        C = sqrt.((x-p[2]).^2 + (y-p[3]).^2)
+        W = 1./sqrt.((p[2]-x).^2 + (p[3]-yc).^2)
+        return (p[1] - C) .* W
+    end
+
+    T = eltype(x)
+
+    result = LsqFit.lmfit(resid, initial_guess, T[])
+
+    return result
 end
