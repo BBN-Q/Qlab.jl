@@ -39,16 +39,19 @@ Helper function to return a fit to a model.
 """
 function generic_fit(xpts, ypts, model, initial_guess, fit_params, model_string::String; yvars=[])
     @assert length(xpts) == length(ypts) "X and Y data length must match."
-    if isempty(yvars)
-      result = curve_fit(model, xpts, ypts, initial_guess)
-      errors = estimate_errors(result)
-      sq_error = sum(((model(xpts, result.param) - ypts).^2))
-    else
-      @assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
-      result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), initial_guess)
-      errors = estimate_errors(result)
-      sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
-    end
+    #try
+        if isempty(yvars)
+          result = curve_fit(model, xpts, ypts, initial_guess)
+          errors = estimate_errors(result)
+          sq_error = sum(((model(xpts, result.param) - ypts).^2))
+        else
+          @assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
+          result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), initial_guess)
+          errors = estimate_errors(result)
+          sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
+        end
+    #catch
+    #    result =
     # Compute badness of fit:
     # Under the null hypothesis (that the model is valid and that the observations
     # do indeed have Gaussian statistics), the mean squared error is χ² distributed
@@ -149,9 +152,8 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
 
     aic = aicc(fitresult2.sq_error,k2,length(xpts)) - aicc(fitresult1.sq_error,k1,length(xpts))
 
-    return [ fitresult1, fitresult2,
-            (aic > 0) ? 1 : 2,
-            aic ]
+    println(aic)
+    return fitresult2 #(aic > 0) ? fitresult2 : fitresult1
 end
 
 """`fit_sin(xpts, ypts, yvars)`
