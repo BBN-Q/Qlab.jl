@@ -121,6 +121,13 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
 
   kwdict = Dict(kwargs)
 
+  function χ2(data, R, xc, yc)
+    x = real.(data)
+    y = imag.(data)
+    d = sqrt.( (x-xc).^2 + (y-yc).^2 ) - R
+    return sum(d.^2)
+  end
+
   #Fit to cable delay
   haskey(kwdict, :τ) ? τ = kwdict[:τ] : τ = fit_delay(freq, data)
 
@@ -128,9 +135,8 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   #Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
 
-  χ2 = sum(R.^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
   #@assert χ2 < 10 "Could not fit circle to delay-corrected data. χ² = $(χ2)."
-  @debug "Fit circle to delay corrected data with χ² = $(χ2)."
+  @debug "Fit circle to delay corrected data with χ² = $(χ2(Sp, R, xc, yc))."
 
   #Translate circle to origin and fit overall phase delay and scaling
   St = Sp - (xc + 1im * yc)
@@ -148,9 +154,8 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   Sc = Sp .* exp.(-1im * α) / A
   Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
 
-  χ2 = sum(Rc.^2 - (real(Sc) - xcc).^2 - (imag(Sc) - ycc).^2)
   #@assert χ2 < 10 "Could not fit circle to calibrated data. χ² = $(χ2)."
-  @debug "Fit circle to calibrated data with χ² = $(χ2)."
+  @debug "Fit circle to calibrated data with χ² = $(χ2(Sc, Rc, xcc, ycc))."
 
   N = length(data)
   r = sqrt.((real(Sc) - xcc).^2 + (imag(Sc) - ycc).^2)
@@ -365,7 +370,7 @@ function fit_circle_LM(x, y, initial_guess)
 
     function resid(p)
         C = sqrt.((x-p[2]).^2 + (y-p[3]).^2)
-        W = 1./sqrt.((p[2]-x).^2 + (p[3]-yc).^2)
+        W = 1./sqrt.((p[2]-x).^2 + (p[3]-y).^2)
         return (p[1] - C) .* W
     end
 
@@ -373,5 +378,5 @@ function fit_circle_LM(x, y, initial_guess)
 
     result = LsqFit.lmfit(resid, initial_guess, T[])
 
-    return result
+    return result.param[1], result.param[2], result.param[3]
 end
