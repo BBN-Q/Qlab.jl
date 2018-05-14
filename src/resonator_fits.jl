@@ -2,6 +2,7 @@ using LsqFit
 using Optim
 using MicroLogging
 using PyPlot
+using Roots
 
 #Fitting a biased Lorentzian to amplitude data.
 """
@@ -120,6 +121,13 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
 
   kwdict = Dict(kwargs)
 
+  function χ2(data, R, xc, yc)
+    x = real.(data)
+    y = imag.(data)
+    d = sqrt.( (x-xc).^2 + (y-yc).^2 ) - R
+    return sum(d.^2)
+  end
+
   #Fit to cable delay
   haskey(kwdict, :τ) ? τ = kwdict[:τ] : τ = fit_delay(freq, data)
 
@@ -127,9 +135,8 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   #Get best-fit circle and translate to origin.
   R, xc, yc = fit_circle(real.(Sp), imag.(Sp))
 
-  χ2 = sum(R.^2 - (real(Sp) - xc).^2 - (imag(Sp) - yc).^2)
   #@assert χ2 < 10 "Could not fit circle to delay-corrected data. χ² = $(χ2)."
-  @debug "Fit circle to delay corrected data with χ² = $(χ2)."
+  @debug "Fit circle to delay corrected data with χ² = $(χ2(Sp, R, xc, yc))."
 
   #Translate circle to origin and fit overall phase delay and scaling
   St = Sp - (xc + 1im * yc)
@@ -147,9 +154,8 @@ function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{
   Sc = Sp .* exp.(-1im * α) / A
   Rc, xcc, ycc = fit_circle(real.(Sc), imag.(Sc))
 
-  χ2 = sum(Rc.^2 - (real(Sc) - xcc).^2 - (imag(Sc) - ycc).^2)
   #@assert χ2 < 10 "Could not fit circle to calibrated data. χ² = $(χ2)."
-  @debug "Fit circle to calibrated data with χ² = $(χ2)."
+  @debug "Fit circle to calibrated data with χ² = $(χ2(Sc, Rc, xcc, ycc))."
 
   N = length(data)
   r = sqrt.((real(Sc) - xcc).^2 + (imag(Sc) - ycc).^2)
@@ -259,8 +265,10 @@ function fit_delay(freq, data)
   function delay_model(x)
     ddata = data .* exp.(2. * π * 1im * freq * x)
     R, xc, yc = fit_circle(real.(ddata), imag.(ddata))
-    return sum(R.^2 - (real.(ddata) - xc).^2 - (imag.(ddata) - yc).^2)
+    d = sqrt.((real.(ddata) - xc).^2 + (imag.(ddata) - yc).^2) - R
+    return sum(d.^2)
   end
+
   ϕ = unwrap(angle.(data))
   linfit(x,p) = p[1] + x * p[2]
   fit = curve_fit(linfit, freq, ϕ, [mean(ϕ), 0])
@@ -318,7 +326,7 @@ function simulate_resonance(kwargs...)
   return freqs, data, p
 end
 
-function fit_circle(x, y)
+function fit_circle(x, y; refine=false)
   """Algebraic fit of (x,y) points to a circle. See:
       N. Chernov and C. J. Lesort, Least Squares Fitting of Circles,
         Journal of Mathematical Imaging and Vision, 23: 239-252, 2005.
@@ -344,14 +352,31 @@ function fit_circle(x, y)
   Myz = sum(y .* z)
   M = [Mzz Mxz Myz Mz; Mxz Mxx Mxy Mx; Myz Mxy Myy My; Mz Mx My n];
   B = [0 0 0 -2; 0 1 0 0; 0 0 1 0; -2 0 0 0]
-  D, V = eig(M, B)
-  D[D .< eps()] = NaN
-  ev = V[:, indmin(D)]
+
+  F(η) = det(M - η*B)
+  #We use Newton's method to guarantee convergence to the smallest positive eigenvalue
+  ηs = newton(F, 0.0)
+  ev = nullspace(M - ηs*B)
+
   xc = -ev[2]/2/ev[1]
   yc = -ev[3]/2/ev[1]
   R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4])/2./abs(ev[1])
-  if abs(xc - yc) < eps()
-    warn("The moment matrix of the circle fit has repeated eigenvalues; the fit has probably failed.")
-  end
+
   return R, xc, yc
+end
+
+function fit_circle_LM(x, y, initial_guess)
+    """Iterative algorithm for refining a circle fit, using radial weighting."""
+
+    function resid(p)
+        C = sqrt.((x-p[2]).^2 + (y-p[3]).^2)
+        W = 1./sqrt.((p[2]-x).^2 + (p[3]-y).^2)
+        return (p[1] - C) .* W
+    end
+
+    T = eltype(x)
+
+    result = LsqFit.lmfit(resid, initial_guess, T[])
+
+    return result.param[1], result.param[2], result.param[3]
 end

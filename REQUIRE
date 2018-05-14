@@ -2,6 +2,7 @@ julia 0.6
 JSON
 HDF5
 LsqFit
+Roots
 Optim
 Compat
 StatsBase
