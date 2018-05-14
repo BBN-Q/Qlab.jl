@@ -229,12 +229,12 @@ end
 """
 Load multi-qubit calibration data (e.g., measurement results for computational states)
 """
-function load_ss(data, qubits, group = "shots")
+function load_ss(data, qubits; group = "shots", ref_group = "main", quad = :real)
     shots = Dict()
     for (ct, qubit) in enumerate(reverse(qubits)) #from LSB to MSB
       shots[qubit] = Dict()
       metadata_key = []
-      for k in keys(data[qubit*"-main"])
+      for k in keys(data[qubit*"-"*ref_group])
         if contains(k, "metadata")
           push!(metadata_key, k)
         end
@@ -246,7 +246,7 @@ function load_ss(data, qubits, group = "shots")
       for m = 0:2^length(qubits)-1
         label = bin(m, length(qubits))
         ind = find(x -> x==parse(UInt8, label, 2), data[qubit*"-"*group][metadata_key[1]])
-        shots[qubit][label] = real(data[qubit*"-"*group]["Data"][ind])
+        shots[qubit][label] = eval(quad).(data[qubit*"-"*group]["Data"][ind])
       end
     end
     return shots
