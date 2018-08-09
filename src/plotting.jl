@@ -5,7 +5,8 @@ function plot_ss_hists(shots_0, shots_1)
   #single-shot readout histograms
   hist_0 = kde(shots_0[:])
   hist_1 = kde(shots_1[:])
-  fidelity, _ = get_fidelity(shots_0, shots_1)
+  fidelity, threshold = get_fidelity(shots_0, shots_1)
+  println("Treshold = ", threshold)
   w=4
   figure(figsize=(w,w/1.4))
   plot(hist_0.x, hist_0.density/sum(hist_0.density),label=L"$|0\rangle$")
@@ -24,8 +25,10 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png")
-  fig = figure(figsize=(3,3))
+function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png", doplot=true, fig = nothing)
+  if fig == nothing
+      fig = figure(figsize=(3,3))
+  end
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
@@ -37,21 +40,28 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
-  plot(xpoints_values, data_values)
+  if doplot
+      plot(xpoints_values, data_values)
+  end
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
     fit_result = (fit_function)(xpoints_values, data_values)
     println("Fitting to model: ", fit_result.model_str)
-    plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", linewidth=1)
+    ax = gca()
+    if doplot
+        plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+    end
   end
   label_x = xpoints["name"]
   if xpoints["unit"] != "None"
     label_x = string(label_x, " (", xpoints["unit"], ")" )
   end
-  xlabel(label_x)
-  ylabel(label_y)
-  title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  if doplot
+      xlabel(label_x)
+      ylabel(label_y)
+      title(get_partial_filename(data[3]["filename"]))
+      ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  end
   if isempty(fit_name)
     return (xpoints_values, data_values)
   else
