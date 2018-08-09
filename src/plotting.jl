@@ -268,3 +268,28 @@ function get_partial_filename(filename, num_dirs = 2)
   end
   return cur_path
 end
+
+function load_T1_series(numstart, numend, group, subdir=Dates.format(Dates.today(),"yymmdd"))
+    """
+      load_T1_series
+    
+    Plot multiple exponentially decaying 1D traces on top of each other from different files.
+    numstart/numend: file number start/end
+    group: data group name
+    Optional arguments
+    -------------------------
+    subdir = date
+    """
+    T1vec = zeros(numend-numstart+1)
+    y0vec = zeros(numend-numstart+1)
+    datavec = zeros(31, numend-numstart+1)
+    fig = figure(figsize=(3,3))
+    for (k,num) in enumerate(numstart:numend)
+        data = load_data(datapath, num, subdir);
+        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig)
+        T1vec[k] = fit_result.fit_params["T"]
+        y0vec[k] = fit_result.fit_params["b"]
+        datavec[:,k] = data_values
+    end
+    return datavec, T1vec, y0vec
+end
