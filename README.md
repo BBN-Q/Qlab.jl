@@ -1,4 +1,4 @@
-![Travis CI](https://travis-ci.org/BBN-Q/Qlab.jl.svg?branch=master)
+[![Build Status](https://travis-ci.org/BBN-Q/Qlab.jl.svg?branch=master)](https://travis-ci.org/BBN-Q/Qlab.jl)
 
 Qlab.jl
 ==========
