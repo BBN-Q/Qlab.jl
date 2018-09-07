@@ -3,4 +3,4 @@
 Qlab.jl
 ==========
 
-Data manipulation and analysis tools.
+Data manipulation and analysis tools.  Currently working with Julia v0.6.X.
