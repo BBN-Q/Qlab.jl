@@ -46,7 +46,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
 
   for kk=1:length(ind0)
     fidvec_un[kk] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[kk]]-PDFvec[:,ind1[kk]])))
-    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
+    indmaximum = argmax(abs.(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], fidvec_un[kk])
     tempvec0 = cumsum(abs.(PDFvec[:,ind0[kk]]))
     err0[kk] = tempvec0[indmaximum]
@@ -82,7 +82,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
       PDFvec_con[:,(jj-1)*numMeas+kk] = kde(tempvec, bins).density
 
       #hist(~isnan(datamat[:,numMeas*(jj-1)+kk]).*datamat[:,numMeas*(jj-1)+kk], bins)[2];
-      if(size(find(selectMeas.==kk),1)==0)
+      if(size(findall(selectMeas.==kk),1)==0)
         data_con[jj,thismeas] = nanmean(datamat[:,numMeas*(jj-1)+kk])
         thismeas=thismeas+1
       end
@@ -182,7 +182,7 @@ function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,sele
     @printf("Ancilla n.%d\n", Aind)
     #for kk=1:size(ind0,1)
     fidvec_un[Aind] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[Aind],Aind]-PDFvec[:,ind1[Aind],Aind])))
-    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
+    indmaximum = argmax(abs.(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], fidvec_un[Aind])
     tempvec0 = cumsum(abs.(PDFvec[:,ind0[Aind],Aind]))
     err0[Aind] = tempvec0[indmaximum]

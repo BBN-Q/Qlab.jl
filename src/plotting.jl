@@ -45,7 +45,7 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
       #fig[:set_size_inches](8,5)
   end
   if ~isempty(fit_name)
-    fit_function = eval(parse(string("fit_", fit_name)))
+    fit_function = eval(Meta.parse(string("fit_", fit_name)))
     fit_result = (fit_function)(xpoints_values, data_values)
     println("Fitting to model: ", fit_result.model_str)
     ax = gca()
@@ -155,7 +155,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   else
     fig = figure(figsize = (8,3))
     subplot(1,2,1)
-    fit_function = eval(parse(string("fit_", fit_name)))
+    fit_function = eval(Meta.parse(string("fit_", fit_name)))
   end
   fig[:set_size_inches](8,5)
   if cals
