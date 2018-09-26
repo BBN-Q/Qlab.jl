@@ -95,7 +95,7 @@ end
 Calculate the mean ignoring nan values
 """
 function nanmean(vec)
-    return sum(~isnan(vec).*vec)/length(find(~isnan(vec)))
+    return sum(.~isnan.(vec).*vec)/length(find(.~isnan.(vec)))
 end
 
 """
@@ -204,4 +204,44 @@ end
 """ In-place version of unwrap. """
 function unwrap{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
   return unwrap!(copy(ϕ), discont=discont)
+end
+
+function CR_hamiltonian(datapath, filelist, subdir=Dates.format(Dates.today(),"yymmdd"), params_estimate = [5,5,0,0,0,1])
+    IX = zeros(length(filelist))
+    IY = zeros(length(filelist))
+    IZ = zeros(length(filelist))
+    ZX = zeros(length(filelist))
+    ZY = zeros(length(filelist))
+    ZZ = zeros(length(filelist))
+    fit_curves = Dict()
+
+    for (ct, filenum) in enumerate(filelist)
+        data = load_data(datapath, filenum, datestr);
+
+        norm_data = Qlab.cal_data(data[1], qubit="main")[1]
+        data_len = Int(length(norm_data)/6)
+        xvec = reshape(norm_data[1:3:end], data_len, 2)
+        yvec = reshape(norm_data[2:3:end], data_len, 2)
+        zvec = reshape(norm_data[3:3:end], data_len, 2);
+        rvec = sqrt.(sum(xvec,2).^2+sum(yvec,2).^2+sum(zvec,2).^2)/2 # missing factor of 2 in PRA
+        xpoints = data[2]["q1-main"][1]["points"][1:3:end-4][1:data_len]
+
+        if ct>1
+            params_estimate = tau_vec[1,:]
+        end
+        tau_vec = zeros(2,6)
+        for ind=1:2
+            result = optimize(x-> calculate_residueCR(x, xpoints, [xvec[:,ind],yvec[:,ind],zvec[:,ind]])[1], params_estimate)
+            τ = Optim.minimizer(result)
+            tau_vec[ind, :] = τ
+            fit_curves[ind-1] = calculate_residueCR(τ, xpoints,  [xvec[:,ind],yvec[:,ind],zvec[:,ind]])[2]
+        end
+        IX[ct] = (tau_vec[1,1]+tau_vec[2,1])/2/(2*pi)
+        IY[ct] = (tau_vec[1,2]+tau_vec[2,2])/2/(2*pi)
+        IZ[ct] = (tau_vec[1,3]+tau_vec[2,3])/2/(2*pi)
+        ZX[ct] = (tau_vec[1,1]-tau_vec[2,1])/2/(2*pi)
+        ZY[ct] = (tau_vec[1,2]-tau_vec[2,2])/2/(2*pi)
+        ZZ[ct] = (tau_vec[1,3]-tau_vec[2,3])/2/(2*pi)
+        rfit = sqrt.(sum(hcat(fit_curves[0]+fit_curves[1]...).^2,2))/2
+    end
 end
