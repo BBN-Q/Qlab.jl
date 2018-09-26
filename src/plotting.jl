@@ -1,4 +1,4 @@
-using PyPlot, KernelDensity, Formatting, Seaborn
+using KernelDensity, Formatting, PyPlot, Seaborn
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
@@ -26,7 +26,7 @@ function plot_ss_hists(shots_0, shots_1)
 end
 
 function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png", doplot=true, fig = nothing)
-  if fig == nothing
+  if fig == nothing && doplot == true
       fig = figure(figsize=(3,3))
   end
   data_values = data[1][group]["Data"]
@@ -41,7 +41,8 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   end
   xpoints_values = xpoints_values[1:length(data_values)]
   if doplot
-      plot(xpoints_values, data_values)
+      plot(xpoints_values, data_values, marker=".")
+      #fig[:set_size_inches](8,5)
   end
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
@@ -101,7 +102,7 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     vmax = maximum(data_grid)
   end
   if show_plot
-    fig = figure("pyplot_surfaceplot",figsize=(3,3))
+    fig = figure("pyplot_surfaceplot",figsize=(4,4))
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
     if transpose
@@ -150,12 +151,13 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   Tvec = zeros(length(ypoints_values))
   dTvec = zeros(length(ypoints_values))
   if isempty(fit_name)
-    figure(figsize= (3.5,3))
+    fig = figure(figsize= (3.5,3))
   else
-    figure(figsize = (8,3))
+    fig = figure(figsize = (8,3))
     subplot(1,2,1)
     fit_function = eval(parse(string("fit_", fit_name)))
   end
+  fig[:set_size_inches](8,5)
   if cals
     data_values = cal_data(data[1], qubit=group, quad=quad, cal0=cal0, cal1=cal1)
   else
@@ -269,10 +271,10 @@ function get_partial_filename(filename, num_dirs = 2)
   return cur_path
 end
 
-function load_T1_series(numstart, numend, group, subdir=Dates.format(Dates.today(),"yymmdd"))
+function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd"))
     """
       load_T1_series
-    
+
     Plot multiple exponentially decaying 1D traces on top of each other from different files.
     numstart/numend: file number start/end
     group: data group name
