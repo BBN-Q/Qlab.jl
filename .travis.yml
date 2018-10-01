@@ -3,9 +3,11 @@ language: julia
 os:
   - linux
 julia:
-  - 0.6
+  - 0.6.3
 notifications:
   email: false
+before_install:
+  - sudo apt-get update
 
 script:
   - julia -e 'Pkg.add("Conda")'
