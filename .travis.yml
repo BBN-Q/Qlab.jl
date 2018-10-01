@@ -6,6 +6,8 @@ julia:
   - 0.6
 notifications:
   email: false
+before_install:
+  - sudo apt-get update
 
 script:
   - julia -e 'Pkg.add("Conda")'
