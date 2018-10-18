@@ -54,9 +54,9 @@ function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = 
   ind1_edge = push!(filter(x -> ind1[x] != ind1[x+1]-1, 1:length(ind1)-1), length(ind1))
   ind_data_edge = push!(filter(x -> ind_data[x] != ind_data[x+1]-1, 1:length(ind_data)-1), length(ind_data)) #find consecutive data. Assume that every sweep starts with data
   for s in 1:length(ind0_edge)
-    ind0_s =  s>1? ind0[ind0_edge[s-1]+1:ind0_edge[s]] : ind0[1:ind0_edge[1]]
-    ind1_s =  s>1? ind1[ind1_edge[s-1]+1:ind1_edge[s]] : ind1[1:ind1_edge[1]]
-    ind_data_s =  s>1? ind_data[ind_data_edge[s-1]+1:ind_data_edge[s]] : ind_data[1:ind_data_edge[1]]
+    ind0_s =  s>1 ? ind0[ind0_edge[s-1]+1:ind0_edge[s]] : ind0[1:ind0_edge[1]]
+    ind1_s =  s>1 ? ind1[ind1_edge[s-1]+1:ind1_edge[s]] : ind1[1:ind1_edge[1]]
+    ind_data_s =  s>1 ? ind_data[ind_data_edge[s-1]+1:ind_data_edge[s]] : ind_data[1:ind_data_edge[1]]
     data_s = eval(quad).(data[qubit]["Data"][ind_data_s])
     zero_cal = mean(eval(quad).(data[qubit]["Data"][ind0_s]))
     one_cal = mean(eval(quad).(data[qubit]["Data"][ind1_s]))

@@ -254,7 +254,7 @@ function get_partial_filename(filename, num_dirs = 2)
   cur_path = ""
   for n=1:num_dirs+1
     filename, filename_dir = splitdir(filename)
-    cur_path = n==1? filename_dir : joinpath(filename_dir, cur_path)
+    cur_path = n==1 ? filename_dir : joinpath(filename_dir, cur_path)
   end
   return cur_path
 end
