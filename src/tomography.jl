@@ -142,13 +142,14 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubit
 
     for data_q in values(data)
         # Average over calibration repeats
-        calData = real(data_q["Data"][end-nbrCalRepeats*(2^nbrQubits )+1:end])
+        data_ql = haskey(data_q,"Data") ? data_q["Data"] : data_q["Correlator"]
+        calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
         avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), 1)
         # Pull out the calibrations as diagonal measurement operators
         push!(measOps, diagm(avgCalData[:]))
 
         #The data to invert
-        append!(tomoData, real(data_q["Data"][1:end-nbrCalRepeats*(2^nbrQubits)]) )
+        append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]) )
 
         #variance
         append!(varData, real(data_q["Variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
