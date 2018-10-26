@@ -6,7 +6,7 @@ Roots
 Optim
 Compat
 StatsBase
-QuantumTomography
+QuantumTomography 0.0.1
 KernelDensity
 PyPlot
 Formatting
