@@ -229,7 +229,7 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
         bar(ind, pauli_vec_ideal, bar_width, color="green", label=L"$\rho_{ideal}$")
     end
     bar(ind, pauli_vec, bar_width, label=L"$\rho_{actual}$")
-    xticks(ind + bar_width/2., map(string,pauli_ops))
+    xticks(ind, map(string,pauli_ops))
     ylim([-1.05,1.05])
     xlabel("Pauli operator")
     ylabel("Expectation value")
