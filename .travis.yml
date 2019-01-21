@@ -8,12 +8,12 @@ notifications:
   email: false
 before_install:
   - sudo apt-get update
+  - julia -e 'Pkg.add("Conda")'
+  - julia -e 'using Conda; Conda.add("matplotlib")'
 
 script:
-  - julia -e 'Pkg.add("Conda")'
   - julia -e 'Pkg.add("PyCall")'
   - julia -e 'ENV["PYTHON"]=""; Pkg.build("PyCall")'
-  - julia -e 'using Conda; Conda.add("matplotlib")'
   - julia -e 'Pkg.clone(pwd())'
   - julia -e 'Pkg.build("Qlab")'
   - julia --check-bounds=yes -e 'Pkg.test("Qlab", coverage=true)'
