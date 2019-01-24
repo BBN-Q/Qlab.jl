@@ -1,4 +1,4 @@
-julia 0.6
+julia 1.0
 JSON
 HDF5
 LsqFit
@@ -6,7 +6,7 @@ Roots
 Optim
 Compat
 StatsBase
-QuantumTomography 0.0.0 0.0.2-
+QuantumTomography 0.0.4
 KernelDensity
 PyPlot
 Formatting
