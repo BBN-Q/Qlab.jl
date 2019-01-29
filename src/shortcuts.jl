@@ -73,7 +73,7 @@ end
 Get readout fidelity from single-shot measurements
 """
 function get_fidelity(shots_0, shots_1, nbins = 51, showPlot = false)
-  bins = linspace(min(minimum(shots_0),minimum(shots_1)),max(maximum(shots_0),maximum(shots_1)),nbins)
+  bins = range(min(minimum(shots_0),minimum(shots_1)), stop=max(maximum(shots_0),length=maximum(shots_1)),nbins)
   hist_0 = kde(shots_0[:],bins)
   hist_1 = kde(shots_1[:],bins)
   cdf_0 = cumsum(hist_0.density)/cumsum(hist_0.density)[end]
@@ -192,7 +192,7 @@ Returns:
 See also:
   numpy.unwrap()
 """
-function unwrap!{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
+function unwrap!(ϕ::Array{T}; discont=π) where T <: AbstractFloat
   Δ = diff(ϕ)
   Δmod = mod.(Δ + π, 2 * π) - π
   Δmod[(Δmod .== -π) .& (Δ .> 0)] = π
@@ -202,7 +202,7 @@ function unwrap!{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
 end
 
 """ In-place version of unwrap. """
-function unwrap{T <: AbstractFloat}(ϕ::Array{T}; discont=π)
+function unwrap(ϕ::Array{T}; discont=π) where T <: AbstractFloat
   return unwrap!(copy(ϕ), discont=discont)
 end
 

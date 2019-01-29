@@ -5,8 +5,10 @@ LsqFit
 Roots
 Optim
 Compat
+Statistics
 StatsBase
-QuantumTomography 0.0.4
+QuantumTomography
+QuantumInfo
 KernelDensity
 PyPlot
 Formatting
@@ -15,3 +17,6 @@ DataFrames
 YAML
 CSV
 MicroLogging
+Cliffords
+FFTW
+LinearAlgebra

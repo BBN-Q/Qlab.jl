@@ -13,7 +13,7 @@ function plot_ss_hists(shots_0, shots_1)
   ylabel("Fraction of counts")
   xlabel("Homodyne voltage (a.u.)")
   lgd = legend()
-  annotate(@sprintf("Fid. = %0.2f", fidelity),
+  annotate(sprint(show, "Fid. = $(fidelity)"),
   xy=[0.1;0.7],
   xycoords="axes fraction",
   xytext=[0,10],
