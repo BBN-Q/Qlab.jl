@@ -1,19 +1,32 @@
 #Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
+
 os:
+  - osx
   - linux
+
 julia:
-  - 0.6
+  - 0.7
+  - 1.0
+  - nightly
+
+# matrix:
+#   allowed_failures:
+#     - julia: 0.7
+#     - julia: nightly
+
 notifications:
   email: false
 before_install:
-  - sudo apt-get update
-  - julia -e 'Pkg.add("Conda")'
+  - julia -e 'using Pkg; Pkg.add("Conda")'
   - julia -e 'using Conda; Conda.add("matplotlib")'
-
+# uncomment the following lines to override the default test script
 script:
-  - julia -e 'Pkg.add("PyCall")'
-  - julia -e 'ENV["PYTHON"]=""; Pkg.build("PyCall")'
-  - julia -e 'Pkg.clone(pwd())'
-  - julia -e 'Pkg.build("Qlab")'
-  - julia --check-bounds=yes -e 'Pkg.test("Qlab", coverage=true)'
+    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    - julia -e 'using Pkg; Pkg.add("PyCall")'
+    - julia -e 'ENV["PYTHON"]=""; Pkg.build("PyCall")'
+    - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.develop("Cliffords"); Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
+
+
+# necessary to run on new container-based infrastructure
+sudo: false
