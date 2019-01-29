@@ -18,6 +18,8 @@ julia:
 notifications:
   email: false
 before_install:
+  - julia -e 'using Pkg; Pkg.add("LinearAlgebra")'
+  - julia -e 'using Pkg; Pkg.add("Statistics")'
   - julia -e 'using Pkg; Pkg.add("Conda")'
   - julia -e 'using Conda; Conda.add("matplotlib")'
 # uncomment the following lines to override the default test script
