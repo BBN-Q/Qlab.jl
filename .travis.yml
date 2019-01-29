@@ -25,7 +25,7 @@ script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
-    - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.develop("Cliffords"); Pkg.develop("QuantumTomography"); Pkg.develop("QuantumInfo") Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
+    - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.develop("Cliffords"); Pkg.develop("QuantumTomography"); Pkg.develop("QuantumInfo"); Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
 
 # necessary to run on new container-based infrastructure
