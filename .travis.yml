@@ -23,7 +23,7 @@ script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
-    - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumTomography", version="0.0.4"))'
+    - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/BBN-Q/QuantumTomography.jl", rev="master"))'
     - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumInfo", version="0.1.0"))'
     - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.develop("Cliffords");  Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
