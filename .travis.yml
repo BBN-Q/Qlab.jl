@@ -23,8 +23,8 @@ script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
-    - julia -e 'using Pkg; Pkg.add("QuantumTomography", "v0.0.4")'
-    - julia -e 'using Pkg; Pkg.add("QuantumInfo", "v0.1.0")'
+    - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumTomography", version="0.0.4"))'
+    - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumInfo", version="0.1.0"))'
     - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.add(PackageSpec(url=pwd())); Pkg.develop("Cliffords");  Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
 # necessary to run on new container-based infrastructure
