@@ -1,4 +1,4 @@
-using StatsBase
+using StatsBase, Statistics
 
 """
    digitize(data, cal0, cal1, mode=:equal)
@@ -32,12 +32,12 @@ size for the calibrations is very large.
 """
 function digitize(data, cal0::Vector{Float64}, cal1::Vector{Float64}; mode = :equal, thr = NaN)
     minA, maxA = extrema([quantile(cal0,[.25,.75]); quantile(cal1,[.25,.75])])
-    Arange = linspace(minA,maxA,1000)
+    Arange = range(minA,stop=maxA,length=1000)
     if isnan(thr)
       thr = if mode==:max
-              Arange[indmax(abs.(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))]
+              Arange[findmax(abs.(ecdf(cal0)(Arange)-ecdf(cal1)(Arange)))[2]]
             elseif mode==:equal
-              Arange[indmin(abs.(ecdf(cal0)(Arange)-1+ecdf(cal1)(Arange)))]
+              Arange[findmin(abs.(ecdf(cal0)(Arange).-1+ecdf(cal1)(Arange)))[2]]
             else
               error("Unsupported digitization mode")
             end
@@ -85,8 +85,8 @@ function map_2D(k00, k01, k10, k11, n; thresholds=(NaN, NaN))
   xmax = maximum([k00.x; k01.x; k10.x; k11.x])
   ymin = minimum([k00.y; k01.y; k10.y; k11.y])
   ymax = maximum([k00.y; k01.y; k10.y; k11.y])
-  xpoints = linspace(xmin,xmax,n)
-  ypoints = linspace(ymin,ymax,n)
+  xpoints = range(xmin,stop=xmax,length=n)
+  ypoints = range(ymin,stop=ymax,length=n)
   assignmat = zeros(n,n)
   distrs = [k00 k01 k10 k11]
   for yi in 1:n
@@ -105,8 +105,8 @@ function map_2D(k00, k01, k10, k11, n; thresholds=(NaN, NaN))
           assignmat[xi, yi] = highest_kde_ind
         end
       else
-        assign_a1 = mean(k00.density) > mean(k01.density) ? Int(xpoints[xi] < thresholds[1]):Int(xpoints[xi] > thresholds[1])
-        assign_a2 = mean(k00.density) > mean(k10.density) ? Int(ypoints[yi] < thresholds[2]):Int(ypoints[yi] > thresholds[2])
+        assign_a1 = mean(k00.density) > mean(k01.density) ? Int(xpoints[xi] < thresholds[1]) : Int(xpoints[xi] > thresholds[1])
+        assign_a2 = mean(k00.density) > mean(k10.density) ? Int(ypoints[yi] < thresholds[2]) : Int(ypoints[yi] > thresholds[2])
         assignmat[xi, yi] = assign_a1 + 2*assign_a2 + 1
       end
     end
@@ -167,16 +167,16 @@ function get_fidelities_2D(distrs, xpoints, ypoints, digmat)
       end
     end
   end
-  @printf("Assign fid. P_00 = %.2f\n", probmat[1,1])
-  @printf("Assign fid. P_01 = %.2f\n", probmat[2,2])
-  @printf("Assign fid. P_10 = %.2f\n", probmat[3,3])
-  @printf("Assign fid. P_11 = %.2f\n\n", probmat[4,4])
+  println("Assign fid. P_00 = $(probmat[1,1])")
+  println("Assign fid. P_01 = $(probmat[2,2])")
+  println("Assign fid. P_10 = $(probmat[3,3])")
+  println("Assign fid. P_11 = $(probmat[4,4])")
   p_0x = sum(probmat[1:2,1:2])/2 #assignment prob. for A1 independent of A2
   p_1x = sum(probmat[3:4,3:4])/2
   p_x0 = (probmat[1,1]+probmat[1,3]+probmat[3,1]+probmat[3,3])/2
   p_x1 = (probmat[2,2]+probmat[2,4]+probmat[4,2]+probmat[4,4])/2
-  @printf("Single-qubit fid. A1 = %.2f\n", (p_0x+p_1x)/2)
-  @printf("Single-qubit fid. A2 = %.2f\n", (p_x0+p_x1)/2)
+  println("Single-qubit fid. A1 = $((p_0x+p_1x)/2)")
+  println("Single-qubit fid. A2 = $((p_x0+p_x1)/2)")
   return probmat
 end
 

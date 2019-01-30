@@ -50,7 +50,7 @@ function initial_guess_blorentz(xpts, ypts)
   # find offset
   e = median(ypts)
   if abs(maximum(ypts) - median(ypts)) <= abs(minimum(ypts) - median(ypts))
-        idx = indmin(ypts)
+        idx = findmin(ypts)[2]
         direction = -1
     else
         idx = indmax(ypts)
@@ -101,7 +101,7 @@ struct CircleFitResult
 end
 
 #Fitting to the resonance circle of a quarter-wave resonator
-function fit_resonance_circle{T <: AbstractFloat}(freq::Vector{T}, data::Vector{Complex{T}}; kwargs...)
+function fit_resonance_circle(freq::Vector{T}, data::Vector{Complex{T}}; kwargs...) where T <: AbstractFloat
   """
   Fits complex-valued data
 
@@ -232,7 +232,7 @@ function fit_phase(freq, data)
   model(x, p) = p[1] + 2. * slope * atan.(2 * p[2] *(1. - x / p[3]))
   ϕ = unwrap(angle.(data))
   #guesses for initial parameters
-  idx = indmin(abs.(ϕ - mean(ϕ)))
+  idx = findmin(abs.(ϕ - mean(ϕ)))[2]
   if mean(ϕ[1:9]) > mean(ϕ[end-9:end])
     j = findfirst(x -> x - ϕ[idx] < π/2., ϕ)
     k = findfirst(x -> x - ϕ[idx] < -π/2., ϕ)
@@ -315,7 +315,7 @@ function simulate_resonance(kwargs...)
   α = 0.35 * π
   A = 0.23
   df = f0/Q;
-  freqs = linspace(f0 - 6*df, f0 + 6*df, 401)
+  freqs = range(f0 - 6*df, stop=f0 + 6*df, length=401)
   p = CircleFitParams(f0, Qi, Qc, ϕ, τ, α, A)
   data = lorentzian_resonance(p, freqs);
   # add some noise
@@ -360,7 +360,7 @@ function fit_circle(x, y; refine=false)
 
   xc = -ev[2]/2/ev[1]
   yc = -ev[3]/2/ev[1]
-  R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4])/2./abs(ev[1])
+  R = sqrt(ev[2]^2 + ev[3]^2 - 4*ev[1]*ev[4]) / 2 ./ abs(ev[1])
 
   return R, xc, yc
 end
@@ -370,7 +370,7 @@ function fit_circle_LM(x, y, initial_guess)
 
     function resid(p)
         C = sqrt.((x-p[2]).^2 + (y-p[3]).^2)
-        W = 1./sqrt.((p[2]-x).^2 + (p[3]-y).^2)
+        W = 1 ./ sqrt.((p[2]-x).^2 + (p[3]-y).^2)
         return (p[1] - C) .* W
     end
 

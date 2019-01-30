@@ -22,7 +22,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
   numShots = Int64(length(data)/(numMeas*numSegments))
   data=real(data)'
   datamat = splitdata(data,numShots,numMeas*numSegments)
-  bins = linspace(minimum(minimum(datamat)), maximum(maximum(datamat)),500)
+  bins = range(minimum(minimum(datamat)), stop=maximum(maximum(datamat)),length=500)
 
   PDFvec = zeros(length(bins),numMeas*numSegments)
   PDFvec_con = zeros(length(bins),numMeas*numSegments)
@@ -148,13 +148,13 @@ function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,sele
   end
 
   datamat_A = zeros(numShots_A, numMeas_A*(numSegments-numCal)+numCal, length(Anum))
-  bins = Array(LinSpace{Float64},length(Anum))
+  bins = Array(Base.LinRange{Float64},length(Anum))
   PDFvec = zeros(nbins,numMeas_A*(numSegments-numCal)+numCal, length(Anum))
 
   for Aind = 1:length(Anum)
 
     datamat_A[:, :, Aind] = splitdata(data_A[:, Aind],numShots_A,numMeas_A*(numSegments-numCal)+numCal)
-    bins[Aind] = linspace(minimum(minimum(datamat_A[:, :, Aind])), maximum(maximum(datamat_A[:, :, Aind])),nbins)
+    bins[Aind] = range(minimum(minimum(datamat_A[:, :, Aind])), stop=maximum(maximum(datamat_A[:, :, Aind])),length=nbins)
 
     #PDFvec_con = zeros(length(bins),numMeas*numSegments);
 

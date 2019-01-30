@@ -5,7 +5,7 @@
 # You may obtain a copy of the license at
 #
 #		http://www.apache.org/licenses/LICENSE-2.0
-using Base.Test
+using Test
 
 function in_range(x, minx, maxx)
   return (x >= minx) && (x <= maxx)
@@ -25,8 +25,8 @@ end
 function test_T1_fit()
     #generate some fake data
     vals = Dict("a" => 0.87, "T" => 20., "b" => 0.1)
-    t = collect(linspace(0., 100., 201))
-    y = vals["a"] * exp.(-t/vals["T"]) + vals["b"] + 0.01 * randn((201,))
+    t = collect(range(0., stop=100., length=201))
+    y = vals["a"] * exp.(-t/vals["T"]) .+ vals["b"] .+ 0.01 * randn((201,))
     result = Qlab.fit_t1(t, y)
     check_fit_result(vals, result)
 end
@@ -34,8 +34,8 @@ end
 #y = ax + b.
 function test_line_fit()
     vals = Dict("a" => -0.4, "b" => 2.1)
-    x = linspace(-4, 4, 201)
-    y = vals["a"] * x + vals["b"] + 0.05 * randn((201,))
+    x = range(-4, stop=4, length=201)
+    y = vals["a"] * x .+ vals["b"] .+ 0.05 * randn((201,))
     result = Qlab.fit_line(x,y)
     check_fit_result(vals, result)
 end
@@ -43,8 +43,8 @@ end
 #a*exp(-t ./ T).*cos(2πf .* t + ϕ) + b
 function test_ramsey_fit()
     p = Dict("a"=>0.8, "T"=>12.3, "f"=>0.55, "ϕ"=>π/12, "b"=>-0.15)
-    t = linspace(0, 25, 201)
-    y = p["a"]*exp.(-t ./ p["T"]).*cos.(2π*p["f"] .* t + p["ϕ"]) + p["b"] + 0.01 * randn((201,))
+    t = range(0, stop=25, length=201)
+    y = p["a"]*exp.(-t ./ p["T"]).*cos.(2π*p["f"] .* t .+ p["ϕ"]) .+ p["b"] + 0.01 * randn((201,))
     result = Qlab.fit_ramsey(t,y)
     check_fit_result(p, result)
 end
