@@ -207,7 +207,7 @@ function refine_circle_fit(freq, data, fit_params)
                   fit_params.ϕ, fit_params.τ, fit_params.α, fit_params.A]
 
   fit = curve_fit(model, freq, abs.(data), initial_guess)
-  errors = estimate_errors(fit)
+  errors = margin_error(fit)
 
   refined_params = CircleFitParams(fit.param[1], fit.param[2], fit.param[3],
                 fit.param[4], fit.param[5], fit.param[6], fit.param[7])

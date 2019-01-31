@@ -42,12 +42,12 @@ function generic_fit(xpts, ypts, model, initial_guess, fit_params, model_string:
     #try
         if isempty(yvars)
           result = curve_fit(model, xpts, ypts, initial_guess)
-          errors = estimate_errors(result)
+          errors = margin_error(result)
           sq_error = sum(((model(xpts, result.param) - ypts) .^ 2))
         else
           @assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
           result = curve_fit(model, xpts, ypts, 1 ./ sqrt(yvars), initial_guess)
-          errors = estimate_errors(result)
+          errors = margin_error(result)
           sq_error = sum(((model(xpts, result.param) - ypts) .^ 2) ./ yvars)
         end
     #catch
@@ -192,7 +192,7 @@ function fit_photon_ramsey(xpts, ypts, params)
     end
     p_guess = [0., 1.]
     result = curve_fit(model, xpts, ypts, p_guess)
-    errors = estimate_errors(result)
+    errors = margin_error(result)
     xfine = range(xpts[1], stop=xpts[end],length=1001)
     fit_curve = (xfine, model(xfine, result.param))
     return (result.param[2], errors[2], fit_curve)
@@ -221,7 +221,7 @@ function analyzeRB(ypts, seqlengths; purity=false)
     fit = curve_fit(model, xpts-purity, data, [0.5, .01, 0.5]) #fit to ...^(n-1) for purity
     xfine = range(seqlengths[1],stop=seqlengths[end],length=1001)
     fit_curve = (xfine, model(xfine, fit.param))
-    errors = estimate_errors(fit)
+    errors = margin_error(fit)
     if purity
         println("ϵ_inc = $(0.5*(1-sqrt(1-fit.param[2]))*100)")
     else
