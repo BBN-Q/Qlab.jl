@@ -1,11 +1,12 @@
-using PyPlot, KernelDensity, Formatting, Seaborn
+using KernelDensity, Formatting, PyPlot, Seaborn
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
   #single-shot readout histograms
   hist_0 = kde(shots_0[:])
   hist_1 = kde(shots_1[:])
-  fidelity, _ = get_fidelity(shots_0, shots_1)
+  fidelity, threshold = get_fidelity(shots_0, shots_1)
+  println("Treshold = ", threshold)
   w=4
   figure(figsize=(w,w/1.4))
   plot(hist_0.x, hist_0.density/sum(hist_0.density),label=L"$|0\rangle$")
@@ -24,8 +25,10 @@ function plot_ss_hists(shots_0, shots_1)
   return hist_0, hist_1
 end
 
-function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png")
-  fig = figure(figsize=(3,3))
+function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals = false, cal0::String = "0", cal1::String = "1", fit_name = "", save_fig = "png", doplot=true, fig = nothing)
+  if fig == nothing && doplot == true
+      fig = figure(figsize=(3,3))
+  end
   data_values = data[1][group]["Data"]
   xpoints = data[2][group][1]
   xpoints_values = xpoints["points"]
@@ -37,21 +40,29 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
-  plot(xpoints_values, data_values)
+  if doplot
+      plot(xpoints_values, data_values, marker=".")
+      #fig[:set_size_inches](8,5)
+  end
   if ~isempty(fit_name)
     fit_function = eval(parse(string("fit_", fit_name)))
     fit_result = (fit_function)(xpoints_values, data_values)
     println("Fitting to model: ", fit_result.model_str)
-    plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", linewidth=1)
+    ax = gca()
+    if doplot
+        plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+    end
   end
   label_x = xpoints["name"]
   if xpoints["unit"] != "None"
     label_x = string(label_x, " (", xpoints["unit"], ")" )
   end
-  xlabel(label_x)
-  ylabel(label_y)
-  title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  if doplot
+      xlabel(label_x)
+      ylabel(label_y)
+      title(get_partial_filename(data[3]["filename"]))
+      ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  end
   if isempty(fit_name)
     return (xpoints_values, data_values)
   else
@@ -91,7 +102,7 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     vmax = maximum(data_grid)
   end
   if show_plot
-    fig = figure("pyplot_surfaceplot",figsize=(3,3))
+    fig = figure("pyplot_surfaceplot",figsize=(4,4))
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
     if transpose
@@ -140,12 +151,13 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   Tvec = zeros(length(ypoints_values))
   dTvec = zeros(length(ypoints_values))
   if isempty(fit_name)
-    figure(figsize= (3.5,3))
+    fig = figure(figsize= (3.5,3))
   else
-    figure(figsize = (8,3))
+    fig = figure(figsize = (8,3))
     subplot(1,2,1)
     fit_function = eval(parse(string("fit_", fit_name)))
   end
+  fig[:set_size_inches](8,5)
   if cals
     data_values = cal_data(data[1], qubit=group, quad=quad, cal0=cal0, cal1=cal1)
   else
@@ -257,4 +269,29 @@ function get_partial_filename(filename, num_dirs = 2)
     cur_path = n==1 ? filename_dir : joinpath(filename_dir, cur_path)
   end
   return cur_path
+end
+
+function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd"))
+    """
+      load_T1_series
+
+    Plot multiple exponentially decaying 1D traces on top of each other from different files.
+    numstart/numend: file number start/end
+    group: data group name
+    Optional arguments
+    -------------------------
+    subdir = date
+    """
+    T1vec = zeros(numend-numstart+1)
+    y0vec = zeros(numend-numstart+1)
+    datavec = zeros(31, numend-numstart+1)
+    fig = figure(figsize=(3,3))
+    for (k,num) in enumerate(numstart:numend)
+        data = load_data(datapath, num, subdir);
+        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig)
+        T1vec[k] = fit_result.fit_params["T"]
+        y0vec[k] = fit_result.fit_params["b"]
+        datavec[:,k] = data_values
+    end
+    return datavec, T1vec, y0vec
 end
