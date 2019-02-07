@@ -24,7 +24,7 @@ apt-get install gcc g++ gcc-7-base make libaec0 libgfortran4 libhdf5-100 libquad
 
 ### Python
 
-You'll need working a working version of PyPlot.  In some cases the package manager has trouble getting this write on all systems/OSs.  If you run into issues, we recommend using Conda.jl manually:
+You'll need a working version of PyPlot.  In some cases the package manager has trouble getting this right on all systems/OSs.  If you run into issues, we recommend using Conda.jl manually:
 ```julia
 using Pkg
 Pkg.add("PyCall")
@@ -48,7 +48,7 @@ Qlab.jl depends on several other Julia packages that have biniary dependencies. 
 push!(Libdl.DL_LOAD_PATH, "/opt/local/lib")
 Pkg.build("HDF5")
 ```
-where `/opt/local/lib` is the path to the correct version of libhdf5.  See the documentation from HDF5.jl for more details.
+where `/opt/local/lib` is the path to the correct version of libhdf5.  See the documentation from HDF5.jl for more details.  Currently only version of hdf5 1.8.2 - 1.8.17 are supported.
 
 ## Copyright
 
