@@ -3,6 +3,18 @@ using HDF5, JSON, Compat, YAML, CSV
 """
     load_data(filename)
 
+Load flat data file
+"""
+function load_data(filename::AbstractString)
+	# add functionality to read new Auspex data files
+
+	return header, data
+
+end
+
+"""
+    load_data(filename)
+
 Load hdf5 header and data
 """
 function load_data(filename::AbstractString)
