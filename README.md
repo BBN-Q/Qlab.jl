@@ -31,6 +31,7 @@ Pkg.add("PyCall")
 Pkg.add("Conda")
 ENV["PYTHON"] = ""
 Pkg.build("PyCall")
+using Conda
 Conda.add("matplotlib")
 Pkg.add("PyPlot")
 ```
