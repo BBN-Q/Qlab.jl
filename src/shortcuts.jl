@@ -47,9 +47,9 @@ function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = 
     error("Invalid metadata")
   end
   data_out = []
-  ind0 = find(x -> x==parse(UInt8, cal0, 2), data[qubit][metadata_key[1]])
-  ind1 = find(x -> x==parse(UInt8, cal1, 2), data[qubit][metadata_key[1]])
-  ind_data = find(x -> x==data[qubit][metadata_key[1]][1], data[qubit][metadata_key[1]])
+  ind0 = findall(x -> x==parse(UInt8, cal0, 2), data[qubit][metadata_key[1]])
+  ind1 = findall(x -> x==parse(UInt8, cal1, 2), data[qubit][metadata_key[1]])
+  ind_data = findall(x -> x==data[qubit][metadata_key[1]][1], data[qubit][metadata_key[1]])
   ind0_edge = push!(filter(x -> ind0[x] != ind0[x+1]-1, 1:length(ind0)-1), length(ind0)) #find consecutive cals
   ind1_edge = push!(filter(x -> ind1[x] != ind1[x+1]-1, 1:length(ind1)-1), length(ind1))
   ind_data_edge = push!(filter(x -> ind_data[x] != ind_data[x+1]-1, 1:length(ind_data)-1), length(ind_data)) #find consecutive data. Assume that every sweep starts with data
@@ -85,7 +85,7 @@ function get_fidelity(shots_0, shots_1, nbins = 51, showPlot = false)
     xlabel("Homodyne voltage (a.u.)")
   end
   fidelity = 1-(1-maximum(abs.(cdf_0-cdf_1)))/2
-  threshold = bins[indmax(abs.(cdf_0-cdf_1))]
+  threshold = bins[argmax(abs.(cdf_0-cdf_1))]
   return fidelity, threshold
 end
 
@@ -95,7 +95,7 @@ end
 Calculate the mean ignoring nan values
 """
 function nanmean(vec)
-    return sum(.~isnan.(vec).*vec)/length(find(.~isnan.(vec)))
+    return sum(.~isnan.(vec).*vec)/length(findall(.~isnan.(vec)))
 end
 
 """

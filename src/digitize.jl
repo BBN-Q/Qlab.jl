@@ -100,7 +100,7 @@ function map_2D(k00, k01, k10, k11, n; thresholds=(NaN, NaN))
         x_ind[m] = max(1,searchsortedlast(distrs[m].x, xpoints[xi]))
       end
       if any(isnan, thresholds)
-        highest_kde_ind =  indmax([distrs[1].density[x_ind[1],y_ind[1]] distrs[2].density[x_ind[2],y_ind[2]] distrs[3].density[x_ind[3],y_ind[3]] distrs[4].density[x_ind[4],y_ind[4]]])
+        highest_kde_ind =  argmax([distrs[1].density[x_ind[1],y_ind[1]] distrs[2].density[x_ind[2],y_ind[2]] distrs[3].density[x_ind[3],y_ind[3]] distrs[4].density[x_ind[4],y_ind[4]]])
         if distrs[highest_kde_ind].density[x_ind[highest_kde_ind],y_ind[highest_kde_ind]]>0
           assignmat[xi, yi] = highest_kde_ind
         end
@@ -133,7 +133,7 @@ function smooth_2D_map(digmat; dig_thr = 8)
         nn_count[k] = count(x -> x == k, roundvec)
       end
       highest_nn = maximum(nn_count)
-      indmaxs = find(x -> x == highest_nn, nn_count) #find all the dominant colors
+      indmaxs = findall(x -> x == highest_nn, nn_count) #find all the dominant colors
       indmax = indmaxs[rand(1:end)] #break ties randomly
       if digmat[m,n] == 0 || maximum(nn_count) >= dig_thr #flip states if surrounded
         #by dig_thr points of the same color, or if the state is unassigned
@@ -245,7 +245,7 @@ function load_ss(data, qubits; group = "shots", ref_group = "main", quad = :real
       data_out = []
       for m = 0:2^length(qubits)-1
         label = bin(m, length(qubits))
-        ind = find(x -> x==parse(UInt8, label, 2), data[qubit*"-"*group][metadata_key[1]])
+        ind = findall(x -> x==parse(UInt8, label, 2), data[qubit*"-"*group][metadata_key[1]])
         shots[qubit][label] = eval(quad).(data[qubit*"-"*group]["Data"][ind])
       end
     end
