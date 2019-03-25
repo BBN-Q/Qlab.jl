@@ -16,11 +16,7 @@ function load_data(filename::AbstractString)
         metafile = filter(x-> occursin("meta", x), readdir(joinpath(filename, group)))
         metadata = JSON.parsefile(joinpath(filename, group, metafile[1]))
         open(joinpath(filename, group, datafile[1]), "r") do op
-            if length(metadata["shape"])>1
-                dims = tuple(metadata["shape"]...)
-            else
-                dims = tuple(metadata["shape"][1],1)
-            end
+			dims = tuple(metadata["shape"]...) if length(metadata["shape"])>1 else tuple(metadata["shape"][1],1)
             data = Mmap.mmap(op, Matrix{Complex{Float64}}, dims)
             datasets[group] = data
         end
@@ -36,11 +32,11 @@ end
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 auspex: boolean for file format (default = true)
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), auspex=true)
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"))
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
   #regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
-  regexpr = auspex ? Regex("(.+)($(lpad(filenum, 4, "0")))(\\.h5)") : Regex("($filenum)(\\_.+)(\\.h5)")
+  regexpr = Regex("(.+)($(lpad(filenum, 4, "0")))(\\.auspex)")
   files = filter(x -> occursin(regexpr, x), readdir(joinpath(datapath, subdir)))
   if length(files) == 0
     println("No matching files found!")
@@ -50,7 +46,7 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
     return
   end
   filename = joinpath(datapath, subdir, files[1])
-  auspex ? load_auspex_data(filename) : load_data(filename)
+  load_data(filename)
 end
 
 """
