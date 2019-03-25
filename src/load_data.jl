@@ -25,7 +25,6 @@ function load_data(filename::AbstractString)
     return datasets, descriptors
 end
 
-###TO BE UPDATED
 """
     load_data(datapath, filenum; subdir, auspex)
 
@@ -49,15 +48,16 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
   load_data(filename)
 end
 
-"""
-	load_latest_data()
-    load_latest_data(ind_from_last)
-
-Load latest data file, or ind_from_last files before the latest.
-"""
-function load_latest_data(logpath::AbstractString, ind_from_last::Int = 0)
-	df = CSV.read(logpath, delim = "\t"; use_mmap = false)
-	@assert ind_from_last < length(df.columns[1]) "Not enough data files in the history."
-	filename = df.columns[1][end-ind_from_last]
-	load_auspex_data(filename)
-end
+## TO BE UPDATED
+# """
+# 	load_latest_data()
+#     load_latest_data(ind_from_last)
+#
+# Load latest data file, or ind_from_last files before the latest.
+# """
+# function load_latest_data(logpath::AbstractString, ind_from_last::Int = 0)
+# 	df = CSV.read(logpath, delim = "\t"; use_mmap = false)
+# 	@assert ind_from_last < length(df.columns[1]) "Not enough data files in the history."
+# 	filename = df.columns[1][end-ind_from_last]
+# 	load_auspex_data(filename)
+# end
