@@ -53,7 +53,7 @@ function initial_guess_blorentz(xpts, ypts)
         idx = findmin(ypts)[2]
         direction = -1
     else
-        idx = indmax(ypts)
+        idx = argmax(ypts)
         direction = 1
   end
   # center frequency

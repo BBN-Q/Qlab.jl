@@ -12,20 +12,20 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
         # Four pulse set
         if pulse_type == "Clifford"
             Uset1Q = [complex(RI),
-                      expm(-im*pi/4*X),
-                      expm(-im*pi/4*Y),
+                      exp(-im*pi/4*X),
+                      exp(-im*pi/4*Y),
                       -im*X]
         elseif pulse_type == "Tetra"
             if prep_meas == 1
                 Uset1Q = [complex(RI),
-                          expm(-im*acos(-1/3)*X),
-                          expm(-im*2pi/3*Z)*expm(-im*acos(-1/3)*X),
-                          expm(+im*2pi/3*Z)*expm(-im*acos(-1/3)*X)]
+                          exp(-im*acos(-1/3)*X),
+                          exp(-im*2pi/3*Z)*exp(-im*acos(-1/3)*X),
+                          exp(+im*2pi/3*Z)*exp(-im*acos(-1/3)*X)]
             else
                 Uset1Q = [complex(RI),
-                          expm(-im*acos(-1/3)*X),
-                          expm(+im*acos(-1/3)*X)*expm(+im*2pi/3*Z),
-                          expm(+im*acos(-1/3)*X)*expm(-im*2pi/3*Z)]
+                          exp(-im*acos(-1/3)*X),
+                          exp(+im*acos(-1/3)*X)*exp(+im*2pi/3*Z),
+                          exp(+im*acos(-1/3)*X)*exp(-im*2pi/3*Z)]
             end
         else
             error("Invalid prep./meas. pulse pulse_type")
@@ -33,10 +33,10 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
     elseif nbrPulses==6
         # Six pulse set
         Uset1Q = [complex(RI),
-                  expm(-im*pi/4*X),
-                  expm(+im*pi/4*X),
-                  expm(-im*pi/4*Y),
-                  expm(+im*pi/4*Y),
+                  exp(-im*pi/4*X),
+                  exp(+im*pi/4*X),
+                  exp(-im*pi/4*Y),
+                  exp(+im*pi/4*Y),
                   -im*X]
     elseif nbrPulses==12
         # 12 pulse set
@@ -44,14 +44,14 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
                   -im*X,
                   -im*Y,
                   -im*Z,
-                  expm(-im*pi/3*(+X+Y-Z)/sqrt(3)),  #X+Y-Z 120
-                  expm(-im*pi/3*(+X-Y+Z)/sqrt(3)),  #X-Y+Z 120
-                  expm(-im*pi/3*(-X+Y+Z)/sqrt(3)),  #-X+Y+Z 120
-                  expm(-im*pi/3*(-X-Y-Z)/sqrt(3)),  #X+Y+Z -120 (equivalent to -X-Y-Z 120)
-                  expm(-im*pi/3*(+X+Y+Z)/sqrt(3)),   #X+Y+Z 120
-                  expm(-im*pi/3*(-X+Y-Z)/sqrt(3)),  #X-Y+Z -120 (equivalent to -X+Y-Z 120)
-                  expm(-im*pi/3*(+X-Y-Z)/sqrt(3)),  #-X+Y+Z -120 (equivalent to X-Y-Z 120)
-                  expm(-im*pi/3*(-X-Y+Z)/sqrt(3))]  #X+Y-Z -120 (equivalent to -X-Y+Z 120)
+                  exp(-im*pi/3*(+X+Y-Z)/sqrt(3)),  #X+Y-Z 120
+                  exp(-im*pi/3*(+X-Y+Z)/sqrt(3)),  #X-Y+Z 120
+                  exp(-im*pi/3*(-X+Y+Z)/sqrt(3)),  #-X+Y+Z 120
+                  exp(-im*pi/3*(-X-Y-Z)/sqrt(3)),  #X+Y+Z -120 (equivalent to -X-Y-Z 120)
+                  exp(-im*pi/3*(+X+Y+Z)/sqrt(3)),   #X+Y+Z 120
+                  exp(-im*pi/3*(-X+Y-Z)/sqrt(3)),  #X-Y+Z -120 (equivalent to -X+Y-Z 120)
+                  exp(-im*pi/3*(+X-Y-Z)/sqrt(3)),  #-X+Y+Z -120 (equivalent to X-Y-Z 120)
+                  exp(-im*pi/3*(-X-Y+Z)/sqrt(3))]  #X+Y-Z -120 (equivalent to -X-Y+Z 120)
     else
         error("Invalid number of pulses");
     end
@@ -60,7 +60,7 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
     # number of qubits. Unfornately, Julia's default product is anti-
     # lexicographic (first index is fastest), so we need to reverse the
     # gate order before taking the kronecker product.
-    gateSet = Array{Complex128,2}[]
+    gateSet = Array{ComplexF64,2}[]
     for gates in Base.product([Uset1Q for _ in 1:nbrQubits]...)
         push!(gateSet, kron(1, reverse(gates)...))
     end
@@ -90,7 +90,7 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     end
     # in order to constrain the trace to unity, add an identity observerable
     # and a corresponding value to expResults
-    push!(obs, eye(Complex128, size(measOps[1])...))
+    push!(obs, eye(ComplexF64, size(measOps[1])...))
     expResults2 = [expResults; 1]
     # corresponding variance chosen arbitrarily (it should be very small)
     varMat2 = [varMat; minimum(varMat)]

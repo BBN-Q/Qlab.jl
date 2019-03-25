@@ -41,7 +41,7 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
   # search in a subdirectory with today's date, if not specified
   #regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
   regexpr = auspex ? Regex("(.+)($(lpad(filenum, 4, "0")))(\\.h5)") : Regex("($filenum)(\\_.+)(\\.h5)")
-  files = filter(x -> ismatch(regexpr, x), readdir(joinpath(datapath, subdir)))
+  files = filter(x -> occursin(regexpr, x), readdir(joinpath(datapath, subdir)))
   if length(files) == 0
     println("No matching files found!")
     return
