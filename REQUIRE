@@ -20,3 +20,4 @@ Cliffords
 FFTW
 LinearAlgebra
 Mmap
+HDF5
