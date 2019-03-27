@@ -1,4 +1,4 @@
-using JSON, Compat, CSV, Mmap, HDF5
+using JSON, Compat, CSV, Mmap, HDF5, Dates
 
 """
     load_data(filename)
