@@ -16,7 +16,7 @@ function load_data(filename::AbstractString)
         metafile = filter(x-> occursin("meta", x), readdir(joinpath(filename, group)))
         metadata = JSON.parsefile(joinpath(filename, group, metafile[1]))
         open(joinpath(filename, group, datafile[1]), "r") do op
-			length(metadata["shape"])>1 ? dims = tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
+			dims = length(metadata["shape"])>1 ? tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
             data = Mmap.mmap(op, Matrix{Complex{Float64}}, dims)
             datasets[group] = data
         end
