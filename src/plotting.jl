@@ -146,10 +146,10 @@ save_fig: format of the figure to be saved (empty string to disable)
 
 function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = false, show_legend = true,
   cal0::String = "0", cal1::String = "1", fit_name = "", fit_param_name = "T", save_fig = "png")
-  xpoints = data[2][group][2]
-  ypoints = data[2][group][1]
-  xpoints_values = xpoints["points"]
-  ypoints_values = ypoints["points"]
+  data_values = data[1][group]
+  axes = data[2][group]["axes"]
+  xpoints_values = collect(values(axes))[1]
+  ypoints_values = collect(values(axes))[2]
   Tvec = zeros(length(ypoints_values))
   dTvec = zeros(length(ypoints_values))
   if isempty(fit_name)
@@ -159,11 +159,10 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     subplot(1,2,1)
     fit_function = eval(Meta.parse(string("fit_", fit_name)))
   end
-  fig[:set_size_inches](8,5)
   if cals
     data_values = cal_data(data[1], qubit=group, quad=quad, cal0=cal0, cal1=cal1)
   else
-    data_values = eval(quad).(data[1][group]["Data"])
+    data_values = eval(quad).(data[1][group])
     # reshape to array of array
     data_values = reshape(data_values, length(xpoints_values), length(ypoints_values))
     data_values = [data_values[:,k] for k in 1:size(data_values,2)]
@@ -171,7 +170,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   ax = gca()
   for k in 1:length(data_values)
     xpts = xpoints_values[1:length(data_values[k])]
-    plot(xpts, data_values[k] + offset*k, label=string(ypoints_values[k]), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
+    plot(xpts, data_values[k] .+ offset*k, label=string(round(ypoints_values[k],digits=3)), linewidth = convert(Int,isempty(fit_name)), marker = "o", markersize = 4)
     if ~isempty(fit_name)
       try
           fit_result = (fit_function)(xpts, data_values[k])
@@ -184,10 +183,10 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
       end
     end
   end
-  label_x = xpoints["name"]
-  contains(label_x, "_metadata") && (label_x = split(label_x, "_metadata")[1])
-  if xpoints["unit"] != "None"
-    label_x = string(label_x, " (", xpoints["unit"], ")" )
+  label_x = collect(keys(axes))[1]
+  units = data[2][group]["units"][label_x]
+  if units != nothing
+    label_x = string(label_x, " (", units, ")" )
   end
   xlabel(label_x)
   if cals
@@ -195,24 +194,26 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
   else
     ylabel(string(quad, "(Voltage)"))
   end
+  label_y = collect(keys(axes))[2]
+  units = data[2][group]["units"][label_y]
   if show_legend
-    label_y = ypoints["name"]
-    contains(label_y, "_metadata") && (label_y = split(label_y, "_metadata")[1])
-    if ypoints["unit"] != "None"
-      label_y = string(label_y, " (", ypoints["unit"], ")" )
-    end
-    legend(title = label_y)
+    label_y = collect(keys(axes))[2]
+      units = data[2][group]["units"][label_y]
+    if units != nothing
+      label_y = string(label_y, " (", units, ")" )
+  end
+    legend(title=label_y, bbox_to_anchor=[1.05,1],loc=2,borderaxespad=0)
   end
   if ~isempty(fit_name)
     plr = subplot(1,2,2)
     errorbar(ypoints_values, Tvec, dTvec, marker = "o", markersize=4)
     ylabel(fit_param_name) #TODO: unit? Proper parameter name, e.g., T1?
-    xlabel(ypoints["name"])
+    xlabel(y_label)
     plr[:axis](ymin = 0)
     subplots_adjust(wspace=0.3)
   end
-  title(get_partial_filename(data[3]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  title(get_partial_filename(data[2][group]["filename"]))
+  ~isempty(save_fig) && savefig(string(splitext(data[2]group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   return xpoints_values[1:length(data_values[1])], data_values, (Tvec, dTvec)
 end
 
