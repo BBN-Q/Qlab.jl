@@ -29,14 +29,14 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   if fig == nothing && doplot == true
       fig = figure(figsize=(3,3))
   end
-  data_values = data[1][group]["Data"]
-  xpoints = data[2][group][1]
-  xpoints_values = xpoints["points"]
+  data_values = data[1][group]
+  xpoints = data[2][group]["axes"]
+  xpoints_values = collect(values(xpoints))[1]
   if cals
     data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
-    label_y = L"\langle Z\rangle"
+    #label_y = L"\langle Z\rangle"
   else
-    data_values = eval(quad).(data[1][group]["Data"])
+    data_values = eval(quad).(data[1][group])
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
@@ -53,15 +53,16 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
         plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
     end
   end
-  label_x = xpoints["name"]
-  if xpoints["unit"] != "None"
-    label_x = string(label_x, " (", xpoints["unit"], ")" )
+  label_x = collect(keys(xpoints))[1]
+  units = data[2][group]["units"][label_x]
+  if units != nothing
+    label_x = string(label_x, " (", units, ")" )
   end
   if doplot
       xlabel(label_x)
       ylabel(label_y)
-      title(get_partial_filename(data[3]["filename"]))
-      ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+      title(get_partial_filename(data[2][group]["filename"]))
+      ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   if isempty(fit_name)
     return (xpoints_values, data_values)
@@ -71,29 +72,30 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
 end
 
 function plot2D(data, group = "main"; quad = :real, transpose = false, normalize = false, vmin = NaN, vmax = NaN, cmap = "terrain", show_plot = true, save_fig = "png")
-  data_values = data[1][group]["Data"]
-  xpoints = data[2][group][1]
-  ypoints = data[2][group][2]
-  xpoints_values = xpoints["points"]
-  ypoints_values = ypoints["points"]
+  data_values = data[1][group]
+  axes = data[2][group]["axes"]
+  xpoints_values = collect(values(axes))[1]
+  ypoints_values = collect(values(axes))[2]
   data_quad = eval(quad).(data_values)
-  xpoints_grid = repmat(xpoints_values', length(ypoints_values), 1)
-  ypoints_grid = repmat(ypoints_values, 1, length(xpoints_values))
+  xpoints_grid = repeat(xpoints_values', length(ypoints_values), 1)
+  ypoints_grid = repeat(ypoints_values, 1, length(xpoints_values))
   data_grid = reshape(data_quad, length(ypoints_values), length(xpoints_values))
   if normalize == 1
    data_grid = (data_grid'./data_grid[1,:])'
   elseif normalize == 2
    data_grid./=data_grid[:,1]
   end
-  label_x = xpoints["name"]
-  contains(label_x, "_metadata") && (label_x = split(label_x, "_metadata")[1])
-  if xpoints["unit"] != "None"
-    label_x = string(label_x, " (", xpoints["unit"], ")" )
+  label_x = collect(keys(axes))[1]
+  occursin("_metadata", label_x) && (label_x = split(label_x, "_metadata")[1])
+  units_x = data[2][group]["units"][label_x]
+  if units_x != nothing
+    label_x = string(label_x, " (", units_x, ")" )
   end
-  label_y = ypoints["name"]
-  contains(label_y, "_metadata") && (label_y = split(label_y, "_metadata")[1])
-  if ypoints["unit"] != "None"
-    label_y = string(label_y, " (", ypoints["unit"], ")" )
+  label_y = collect(keys(axes))[2]
+  units_y= data[2][group]["units"][label_y]
+  occursin("_metadata", label_y) && (label_y = split(label_y, "_metadata")[1])
+  if units_y != nothing
+    label_y = string(label_y, " (", units_y, ")" )
   end
   if isnan(vmin)
     vmin = minimum(data_grid)
@@ -115,8 +117,8 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
       ylabel(label_y)
     end
     colorbar()
-    title(get_partial_filename(data[3]["filename"]))
-    ~isempty(save_fig) && savefig(string(splitext(data[3]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+    title(get_partial_filename(data[2][group]["filename"]))
+    ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   return xpoints_values, ypoints_values, data_grid
 end
