@@ -18,7 +18,7 @@ Returns:
 See appendix E.4 of Gao\'s thesis (2008)
 """
 function bias_lorentzian(x, p)
-  return p[1] ./ ((x - p[2]).^2 + (p[3]/2)^2) + p[4]*(x - p[2]) + p[5];
+  return p[1] ./ ((x .- p[2]).^2 .+ (p[3]/2)^2) .+ p[4]*(x .- p[2]) .+ p[5];
 end
 
 """
