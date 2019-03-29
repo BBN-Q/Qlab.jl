@@ -29,20 +29,18 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   if fig == nothing && doplot == true
       fig = figure(figsize=(3,3))
   end
-  data_values = data[1][group]
   xpoints = data[2][group]["axes"]
   xpoints_values = collect(values(xpoints))[1]
   if cals
     data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
-    #label_y = L"\langle Z\rangle"
+    label_y = L"\langle Z\rangle"
   else
-    data_values = eval(quad).(data[1][group])
+    data_values = dropdims(eval(quad).(data[1][group]),dims=2)
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
   if doplot
       plot(xpoints_values, data_values, marker=".")
-      #fig[:set_size_inches](8,5)
   end
   if ~isempty(fit_name)
     fit_function = eval(Meta.parse(string("fit_", fit_name)))
@@ -61,8 +59,6 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   if doplot
       xlabel(label_x)
       ylabel(label_y)
-      title(get_partial_filename(data[2][group]["filename"]))
-      ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   if isempty(fit_name)
     return (xpoints_values, data_values)
@@ -79,7 +75,7 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
   data_quad = eval(quad).(data_values)
   xpoints_grid = repeat(xpoints_values', length(ypoints_values), 1)
   ypoints_grid = repeat(ypoints_values, 1, length(xpoints_values))
-  data_grid = reshape(data_quad, length(ypoints_values), length(xpoints_values))
+  data_grid = reshape(data_quad, length(xpoints_values), length(ypoints_values))
   if normalize == 1
    data_grid = (data_grid'./data_grid[1,:])'
   elseif normalize == 2
@@ -108,13 +104,13 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
     if transpose
-      pcolormesh(ypoints_grid, xpoints_grid, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      ylabel(label_x)
-      xlabel(label_y)
-    else
-      pcolormesh(xpoints_grid, ypoints_grid, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      xlabel(label_x)
+      pcolormesh(xpoints_values, ypoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
       ylabel(label_y)
+      xlabel(label_x)
+    else
+      pcolormesh(ypoints_values, xpoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
+      xlabel(label_y)
+      ylabel(label_x)
     end
     colorbar()
     title(get_partial_filename(data[2][group]["filename"]))
@@ -213,7 +209,7 @@ function plot_multi(data, group = "main"; quad = :real, offset = 0.0, cals = fal
     subplots_adjust(wspace=0.3)
   end
   title(get_partial_filename(data[2][group]["filename"]))
-  ~isempty(save_fig) && savefig(string(splitext(data[2]group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
+  ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   return xpoints_values[1:length(data_values[1])], data_values, (Tvec, dTvec)
 end
 
