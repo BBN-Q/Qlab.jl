@@ -194,9 +194,9 @@ See also:
 """
 function unwrap!(ϕ::Array{T}; discont=π) where T <: AbstractFloat
   Δ = diff(ϕ)
-  Δmod = mod.(Δ + π, 2 * π) - π
+  Δmod = mod.(Δ .+ π, 2 * π) .- π
   Δmod[(Δmod .== -π) .& (Δ .> 0)] = π
-  ϕcorr = Δmod - Δ
+  ϕcorr = Δmod .- Δ
   ϕcorr[abs.(Δ) .< discont] = 0
   return ϕ .+ vcat(0, cumsum(ϕcorr))
 end
