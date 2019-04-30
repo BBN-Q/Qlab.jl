@@ -1,4 +1,4 @@
-using JSON, Compat, CSV, Mmap, HDF5, Dates
+using JSON, Compat, CSV, Mmap, HDF5, Dates, DataStructures
 
 """
     load_data(filename)
@@ -8,16 +8,17 @@ Load data file
 # add functionality to read new Auspex data files (format on develop branch)
 
 function load_data(filename::AbstractString)
-    datasets    = Dict{String, Matrix{Any}}()
+    datasets    = Dict{String, Array{Any}}()
     descriptors = Dict{String,Any}()
     # per qubit
     for group in readdir(filename)
         datafile = filter(x-> occursin(".dat", x), readdir(joinpath(filename, group)))
         metafile = filter(x-> occursin("meta", x), readdir(joinpath(filename, group)))
-        metadata = JSON.parsefile(joinpath(filename, group, metafile[1]))
+        metadata = JSON.parsefile(joinpath(filename, group, metafile[1]), dicttype=DataStructures.OrderedDict)
         open(joinpath(filename, group, datafile[1]), "r") do op
-			dims = length(metadata["shape"])>1 ? tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
-            data = Mmap.mmap(op, Matrix{Complex{Float64}}, dims)
+            dims = length(metadata["shape"])>1 ? tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
+            data = Mmap.mmap(op, Array{Complex{Float64},1}, prod(dims))
+            data = reshape(data, reverse(dims))
             datasets[group] = data
         end
         descriptors[group] = metadata

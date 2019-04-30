@@ -73,13 +73,10 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
   xpoints_values = collect(values(axes))[1]
   ypoints_values = collect(values(axes))[2]
   data_quad = eval(quad).(data_values)
-  xpoints_grid = repeat(xpoints_values', length(ypoints_values), 1)
-  ypoints_grid = repeat(ypoints_values, 1, length(xpoints_values))
-  data_grid = reshape(data_quad, length(xpoints_values), length(ypoints_values))
   if normalize == 1
-   data_grid = (data_grid'./data_grid[1,:])'
+   data_quad = (data_quad'./data_quad[1,:])'
   elseif normalize == 2
-   data_grid./=data_grid[:,1]
+   data_quad./=data_quad[:,1]
   end
   label_x = collect(keys(axes))[1]
   occursin("_metadata", label_x) && (label_x = split(label_x, "_metadata")[1])
@@ -94,29 +91,32 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     label_y = string(label_y, " (", units_y, ")" )
   end
   if isnan(vmin)
-    vmin = minimum(data_grid)
+    vmin = minimum(data_quad)
   end
   if isnan(vmax)
-    vmax = maximum(data_grid)
+    vmax = maximum(data_quad)
   end
   if show_plot
     fig = figure("pyplot_surfaceplot",figsize=(4,4))
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
-    if transpose
-      pcolormesh(xpoints_values, ypoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      ylabel(label_y)
-      xlabel(label_x)
-    else
-      pcolormesh(ypoints_values, xpoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      xlabel(label_y)
+    if dotranspose
+      pcolormesh(ypoints_values, xpoints_values, data_quad, cmap = cmap, vmin = vmin, vmax = vmax)
       ylabel(label_x)
+      xlabel(label_y)
+    else
+      pcolormesh(xpoints_values, ypoints_values, data_quad, cmap = cmap, vmin = vmin, vmax = vmax)
+      xlabel(label_x)
+      ylabel(label_y)
     end
     colorbar()
+    if !haskey(data[2][group],"filename")
+        data[2][group]["filename"] = "None"
+    end
     title(get_partial_filename(data[2][group]["filename"]))
     ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
-  return xpoints_values, ypoints_values, data_grid
+  return xpoints_values, ypoints_values, data_quad
 end
 
 function reshape2D(data, group = "main"; quad = :real, normalize = false)
