@@ -35,7 +35,7 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
     data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
     label_y = L"\langle Z\rangle"
   else
-    data_values = dropdims(eval(quad).(data[1][group]),dims=2)
+    data_values = dropdims(eval(quad).(data[1][group]),dims=1)
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
@@ -100,8 +100,8 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     fig = figure("pyplot_surfaceplot",figsize=(4,4))
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
-    if dotranspose
-      pcolormesh(ypoints_values, xpoints_values, data_quad, cmap = cmap, vmin = vmin, vmax = vmax)
+    if transpose
+      pcolormesh(ypoints_values, xpoints_values, data_quad', cmap = cmap, vmin = vmin, vmax = vmax)
       ylabel(label_x)
       xlabel(label_y)
     else
