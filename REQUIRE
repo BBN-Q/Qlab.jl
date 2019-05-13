@@ -21,3 +21,4 @@ FFTW
 LinearAlgebra
 Mmap
 HDF5
+DataStructures
