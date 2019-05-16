@@ -261,7 +261,7 @@ ha="left",
 va="center")
 end
 
-function get_partial_filename(filename, num_dirs = 2)
+function get_partial_filename(filename, num_dirs = 3)
   cur_path = ""
   for n=1:num_dirs+1
     filename, filename_dir = splitdir(filename)
