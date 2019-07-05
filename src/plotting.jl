@@ -32,10 +32,10 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   xpoints = data[2][group]["axes"]
   xpoints_values = collect(values(xpoints))[1]
   if cals
-    data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
+    data_values = cal_data(data, qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
     label_y = L"\langle Z\rangle"
   else
-    data_values = dropdims(eval(quad).(data[1][group]),dims=2)
+    data_values = dropdims(eval(quad).(data[1][group]),dims=1)
     label_y = string(quad, "(Voltage)")
   end
   xpoints_values = xpoints_values[1:length(data_values)]
@@ -44,11 +44,17 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   end
   if ~isempty(fit_name)
     fit_function = eval(Meta.parse(string("fit_", fit_name)))
-    fit_result = (fit_function)(xpoints_values, data_values)
-    println("Fitting to model: ", fit_result.model_str)
-    ax = gca()
-    if doplot
-        plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+    fit_result = nothing
+    try
+        fit_result = (fit_function)(xpoints_values, data_values)
+        println("Fitting to model: ", fit_result.model_str)
+        ax = gca()
+        if doplot
+            plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax.lines[end].get_color(), linewidth=1)
+        end
+    catch
+        println("Fit failed")
+        return (xpoints_values, data_values, nothing)
     end
   end
   label_x = collect(keys(xpoints))[1]
@@ -73,13 +79,10 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
   xpoints_values = collect(values(axes))[1]
   ypoints_values = collect(values(axes))[2]
   data_quad = eval(quad).(data_values)
-  xpoints_grid = repeat(xpoints_values', length(ypoints_values), 1)
-  ypoints_grid = repeat(ypoints_values, 1, length(xpoints_values))
-  data_grid = reshape(data_quad, length(xpoints_values), length(ypoints_values))
   if normalize == 1
-   data_grid = (data_grid'./data_grid[1,:])'
+   data_quad = (data_quad'./data_quad[1,:])'
   elseif normalize == 2
-   data_grid./=data_grid[:,1]
+   data_quad./=data_quad[:,1]
   end
   label_x = collect(keys(axes))[1]
   occursin("_metadata", label_x) && (label_x = split(label_x, "_metadata")[1])
@@ -94,29 +97,32 @@ function plot2D(data, group = "main"; quad = :real, transpose = false, normalize
     label_y = string(label_y, " (", units_y, ")" )
   end
   if isnan(vmin)
-    vmin = minimum(data_grid)
+    vmin = minimum(data_quad)
   end
   if isnan(vmax)
-    vmax = maximum(data_grid)
+    vmax = maximum(data_quad)
   end
   if show_plot
     fig = figure("pyplot_surfaceplot",figsize=(4,4))
     ax = gca()
     ax[:ticklabel_format](useOffset=false)
     if transpose
-      pcolormesh(xpoints_values, ypoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      ylabel(label_y)
-      xlabel(label_x)
-    else
-      pcolormesh(ypoints_values, xpoints_values, data_grid, cmap = cmap, vmin = vmin, vmax = vmax)
-      xlabel(label_y)
+      pcolormesh(ypoints_values, xpoints_values, data_quad', cmap = cmap, vmin = vmin, vmax = vmax)
       ylabel(label_x)
+      xlabel(label_y)
+    else
+      pcolormesh(xpoints_values, ypoints_values, data_quad, cmap = cmap, vmin = vmin, vmax = vmax)
+      xlabel(label_x)
+      ylabel(label_y)
     end
     colorbar()
+    if !haskey(data[2][group],"filename")
+        data[2][group]["filename"] = "None"
+    end
     title(get_partial_filename(data[2][group]["filename"]))
     ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
-  return xpoints_values, ypoints_values, data_grid
+  return xpoints_values, ypoints_values, data_quad
 end
 
 function reshape2D(data, group = "main"; quad = :real, normalize = false)
@@ -261,7 +267,7 @@ ha="left",
 va="center")
 end
 
-function get_partial_filename(filename, num_dirs = 2)
+function get_partial_filename(filename, num_dirs = 3)
   cur_path = ""
   for n=1:num_dirs+1
     filename, filename_dir = splitdir(filename)
@@ -270,7 +276,7 @@ function get_partial_filename(filename, num_dirs = 2)
   return cur_path
 end
 
-function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd"))
+function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd");quad=:real,delta=1)
     """
       load_T1_series
 
@@ -281,15 +287,18 @@ function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, gr
     -------------------------
     subdir = date
     """
-    T1vec = zeros(numend-numstart+1)
-    y0vec = zeros(numend-numstart+1)
-    datavec = zeros(31, numend-numstart+1)
+    T1vec = fill(NaN, numend-numstart+1)
+    y0vec = fill(NaN, numend-numstart+1)
+    data_temp = load_data(datapath, numstart, subdir)
+    datavec = zeros(length(data_temp[1][group])-4, numend-numstart+1)
     fig = figure(figsize=(3,3))
-    for (k,num) in enumerate(numstart:numend)
+    for (k,num) in enumerate(numstart:delta:numend)
         data = load_data(datapath, num, subdir);
-        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig)
-        T1vec[k] = fit_result.fit_params["T"]
-        y0vec[k] = fit_result.fit_params["b"]
+        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig, quad=quad)
+        if fit_result != nothing
+            T1vec[k] = fit_result.fit_params["T"]
+            y0vec[k] = fit_result.fit_params["b"]
+        end
         datavec[:,k] = data_values
     end
     return datavec, T1vec, y0vec
