@@ -2,6 +2,7 @@ name = "Qlab"
 uuid = "bd484506-bbca-5401-99e8-0a3b5ec6398e"
 license = "Apache"
 repo = "https://github.com/BBN-Q/Qlab.jl.git"
+version = "0.1.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
