@@ -32,7 +32,7 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   xpoints = data[2][group]["axes"]
   xpoints_values = collect(values(xpoints))[1]
   if cals
-    data_values = cal_data(data[1], qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
+    data_values = cal_data(data, qubit=group, quad = quad, cal0=cal0, cal1=cal1)[1]
     label_y = L"\langle Z\rangle"
   else
     data_values = dropdims(eval(quad).(data[1][group]),dims=1)
@@ -44,11 +44,17 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   end
   if ~isempty(fit_name)
     fit_function = eval(Meta.parse(string("fit_", fit_name)))
-    fit_result = (fit_function)(xpoints_values, data_values)
-    println("Fitting to model: ", fit_result.model_str)
-    ax = gca()
-    if doplot
-        plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax[:lines][end][:get_color](), linewidth=1)
+    fit_result = nothing
+    try
+        fit_result = (fit_function)(xpoints_values, data_values)
+        println("Fitting to model: ", fit_result.model_str)
+        ax = gca()
+        if doplot
+            plot(xpoints_values, fit_result.fit_curve(xpoints_values),label="fit", color=ax.lines[end].get_color(), linewidth=1)
+        end
+    catch
+        println("Fit failed")
+        return (xpoints_values, data_values, nothing)
     end
   end
   label_x = collect(keys(xpoints))[1]
@@ -270,7 +276,7 @@ function get_partial_filename(filename, num_dirs = 3)
   return cur_path
 end
 
-function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd"))
+function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, group, subdir=Dates.format(Dates.today(),"yymmdd");quad=:real,delta=1)
     """
       load_T1_series
 
@@ -281,15 +287,18 @@ function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, gr
     -------------------------
     subdir = date
     """
-    T1vec = zeros(numend-numstart+1)
-    y0vec = zeros(numend-numstart+1)
-    datavec = zeros(31, numend-numstart+1)
+    T1vec = fill(NaN, numend-numstart+1)
+    y0vec = fill(NaN, numend-numstart+1)
+    data_temp = load_data(datapath, numstart, subdir)
+    datavec = zeros(length(data_temp[1][group])-4, numend-numstart+1)
     fig = figure(figsize=(3,3))
-    for (k,num) in enumerate(numstart:numend)
+    for (k,num) in enumerate(numstart:delta:numend)
         data = load_data(datapath, num, subdir);
-        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig)
-        T1vec[k] = fit_result.fit_params["T"]
-        y0vec[k] = fit_result.fit_params["b"]
+        _,data_values,fit_result = Qlab.plot1D(data, group, cals=true, fit_name="t1", doplot=true, fig=fig, quad=quad)
+        if fit_result != nothing
+            T1vec[k] = fit_result.fit_params["T"]
+            y0vec[k] = fit_result.fit_params["b"]
+        end
         datavec[:,k] = data_values
     end
     return datavec, T1vec, y0vec

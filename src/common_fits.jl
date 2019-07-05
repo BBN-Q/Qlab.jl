@@ -160,7 +160,7 @@ end
 Fit to a sine a*sin(2πf t) + b
 """
 function fit_sin(xpts, ypts, yvars=[])
-    model(t, p) = p[1]*sin.(2π*p[2] .* t) + p[3]
+    model(t, p) = p[1]*sin.(2π*p[2] .* t) .+ p[3]
     # Use KT estimation to get a guess for the fit
     freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
     idx = argmax(abs.(amps))
