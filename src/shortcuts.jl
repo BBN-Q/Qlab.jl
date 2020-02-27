@@ -28,43 +28,42 @@ qubit: qubit name
 cal0/1: reference measurement for qubit in 0/1
 """
 
-function cal_data(data::Dict{String,Dict{String,Array{Any,1}}}; qubit::String = "", cal0::String = "0", cal1::String = "1", quad = :real)
-  if length(collect(keys(data))) == 1
-    qubit = collect(keys(data))[1]
-  elseif isempty(qubit)
-    error("More than one qubit. Specify qubit name and calibration labels")
-  elseif ~(qubit in keys(data))
-    error("Qubit not found")
-  end
-
-  metadata_key = []
-  for k in keys(data[qubit])
-    if contains(k, "metadata")
-      push!(metadata_key, k)
+function cal_data(data::Tuple{Dict{String,Array{Any,N} where N},Dict{String,Any}};
+     qubit::String = "", cal0::String = "0", cal1::String = "1", quad = :real)
+    if length(collect(keys(data[1]))) == 1
+        qubit = collect(keys(data[1]))[1]
+    elseif isempty(qubit)
+        error("More than one qubit. Specify qubit name and calibration labels")
+    elseif ~(qubit in keys(data[1]))
+        error("Qubit not found")
     end
-  end
-  if length(metadata_key) != 1
-    error("Invalid metadata")
-  end
-  data_out = []
-  ind0 = findall(x -> x==parse(UInt8, cal0, 2), data[qubit][metadata_key[1]])
-  ind1 = findall(x -> x==parse(UInt8, cal1, 2), data[qubit][metadata_key[1]])
-  ind_data = findall(x -> x==data[qubit][metadata_key[1]][1], data[qubit][metadata_key[1]])
-  ind0_edge = push!(filter(x -> ind0[x] != ind0[x+1]-1, 1:length(ind0)-1), length(ind0)) #find consecutive cals
-  ind1_edge = push!(filter(x -> ind1[x] != ind1[x+1]-1, 1:length(ind1)-1), length(ind1))
-  ind_data_edge = push!(filter(x -> ind_data[x] != ind_data[x+1]-1, 1:length(ind_data)-1), length(ind_data)) #find consecutive data. Assume that every sweep starts with data
-  for s in 1:length(ind0_edge)
-    ind0_s =  s>1 ? ind0[ind0_edge[s-1]+1:ind0_edge[s]] : ind0[1:ind0_edge[1]]
-    ind1_s =  s>1 ? ind1[ind1_edge[s-1]+1:ind1_edge[s]] : ind1[1:ind1_edge[1]]
-    ind_data_s =  s>1 ? ind_data[ind_data_edge[s-1]+1:ind_data_edge[s]] : ind_data[1:ind_data_edge[1]]
-    data_s = eval(quad).(data[qubit]["Data"][ind_data_s])
-    zero_cal = mean(eval(quad).(data[qubit]["Data"][ind0_s]))
-    one_cal = mean(eval(quad).(data[qubit]["Data"][ind1_s]))
-    scale_factor = -(one_cal - zero_cal)/2
-    data_s = (data_s - zero_cal)/scale_factor + 1
-    push!(data_out, data_s)
-  end
-  return data_out
+
+    metadata = data[2][qubit]["meta_data"]
+    if(length(metadata))>1
+       error("Invalid metadata")
+    end
+
+    metadata_values = data[2][qubit]["meta_data"][(collect(keys(metadata)))[1]]
+
+    data_out = []
+    ind0 = findall(x -> x==cal0, metadata_values)
+    ind1 = findall(x -> x==cal1, metadata_values)
+    ind_data = findall(x -> x==metadata_values[1], metadata_values)
+    ind0_edge = push!(filter(x -> ind0[x] != ind0[x+1]-1, 1:length(ind0)-1), length(ind0)) #find consecutive cals
+    ind1_edge = push!(filter(x -> ind1[x] != ind1[x+1]-1, 1:length(ind1)-1), length(ind1))
+    ind_data_edge = push!(filter(x -> ind_data[x] != ind_data[x+1]-1, 1:length(ind_data)-1), length(ind_data)) #find consecutive data. Assume that every sweep starts with data
+    for s in 1:length(ind0_edge)
+        ind0_s =  s>1 ? ind0[ind0_edge[s-1]+1:ind0_edge[s]] : ind0[1:ind0_edge[1]]
+        ind1_s =  s>1 ? ind1[ind1_edge[s-1]+1:ind1_edge[s]] : ind1[1:ind1_edge[1]]
+        ind_data_s =  s>1 ? ind_data[ind_data_edge[s-1]+1:ind_data_edge[s]] : ind_data[1:ind_data_edge[1]]
+        data_s = eval(Symbol(quad)).(data[1][qubit][ind_data_s])
+        zero_cal = mean(eval(Symbol(quad)).(data[1][qubit][ind0_s]))
+        one_cal = mean(eval(Symbol(quad)).(data[1][qubit][ind1_s]))
+        scale_factor = -(one_cal - zero_cal)/2
+        data_s = (data_s .- zero_cal)/scale_factor .+ 1
+        push!(data_out, data_s)
+    end
+      return data_out
 end
 
 """

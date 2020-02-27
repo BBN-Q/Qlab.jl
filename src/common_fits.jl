@@ -129,17 +129,17 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     fit_dict2(p) = Dict("a₁"=>p[1], "T₁"=>p[2], "f₁"=>p[3], "ϕ₁"=>p[4],
     "a₂"=>p[5], "T₂"=>p[6], "f₂"=>p[7], "ϕ₂"=>p[8],
     "b"=>p[9])
-    model2(t, p) = ( p[1] * exp.(-t ./ p[2]) .* cos.(2π * p[3] .*t + p[4]) +
+    model2(t, p) = ( p[1] * exp.(-t ./ p[2]) .* cos.(2π * p[3] .*t .+ p[4]) .+
     p[5] * exp.(-t ./ p[6]) .* cos.(2π * p[7] .*t .+ p[8]) .+ p[9] )
 
     #Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 2)
-    phases = angle(amps)
+    freqs,Ts,amps = KT_estimation(ypts.-mean(ypts), xpts[2].-xpts[1], 2)
+    phases = angle.(amps)
     amps = abs.(amps)
-    p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
+    p_guess = [1, Ts[1], freqs[1], phases[1], 1, Ts[2], freqs[2], phases[2], mean(ypts)]
 
     fitresult2 = generic_fit(xpts, ypts, model2, p_guess, fit_dict2,
-    "a₁*exp(-t ./ T₁).*cos(2πf₁ .* t + ϕ₁) + a₂*exp(-t ./ T₂).*cos(2πf₂ .* t + ϕ₂) + b",
+    "a₁*exp(-t ./ T₁).*cos(2πf₁ .* t .+ ϕ₁) .+ a₂*exp(-t ./ T₂).*cos(2πf₂ .* t .+ ϕ₂) .+ b",
     yvars=yvars)
 
     fitresult1 = fit_ramsey(xpts, ypts, yvars)

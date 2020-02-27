@@ -65,6 +65,8 @@ function plot1D(data, group = "main"; quad = :real, label_y = "V (a.u.)", cals =
   if doplot
       xlabel(label_x)
       ylabel(label_y)
+      title(get_partial_filename(data[2][group]["filename"]))
+      ~isempty(save_fig) && savefig(string(splitext(data[2][group]["filename"])[1],'-',group,'.', save_fig), bbox_inches = "tight")
   end
   if isempty(fit_name)
     return (xpoints_values, data_values)
