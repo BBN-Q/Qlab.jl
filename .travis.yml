@@ -13,7 +13,6 @@ matrix:
 notifications:
   email: false
 before_install:
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/BBN-Q/QuantumTomography.jl", rev="master"))'
   - julia -e 'using Pkg; Pkg.add("LinearAlgebra")'
   - julia -e 'using Pkg; Pkg.add("Statistics")'
   - julia -e 'using Pkg; Pkg.add("Conda")'
@@ -24,7 +23,7 @@ script:
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
     - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumInfo", version="0.1.0"))'
-    - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.develop("Cliffords");  Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
+    - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
 # necessary to run on new container-based infrastructure
 sudo: false
