@@ -24,5 +24,3 @@ script:
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
     - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
-# necessary to run on new container-based infrastructure
-sudo: false
