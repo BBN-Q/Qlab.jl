@@ -1,4 +1,4 @@
-using JSON, Compat, CSV, Mmap, HDF5, Dates, DataStructures
+using JSON, Compat, CSV, Mmap, HDF5, Dates, DataStructures, YAML
 
 """
     load_data(filename)
@@ -154,6 +154,6 @@ end
 
 convert_dataset(ds) = ds
 # heuristic to read complex numbers stored as HDF5Compounds
-function convert_dataset(ds::Vector{HDF5.HDF5Compound{2}})
+function convert_dataset(ds::Vector{NamedTuple{(:r, :i), Tuple{Float32, Float32}}})
   return [complex(d.data[1], d.data[2]) for d in ds]
 end
