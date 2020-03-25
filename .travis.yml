@@ -17,12 +17,12 @@ before_install:
   - julia -e 'using Pkg; Pkg.add("Statistics")'
   - julia -e 'using Pkg; Pkg.add("Conda")'
   - julia -e 'using Conda; Conda.add("matplotlib")'
+  - julia -e 'using Conda; Conda.add("seaborn")'
 # uncomment the following lines to override the default test script
 script:
     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
-    - julia -e 'using Pkg; Pkg.add(PackageSpec(name="QuantumInfo", version="0.1.0"))'
     - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
 
 # necessary to run on new container-based infrastructure
