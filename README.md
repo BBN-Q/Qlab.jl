@@ -33,22 +33,19 @@ ENV["PYTHON"] = ""
 Pkg.build("PyCall")
 using Conda
 Conda.add("matplotlib")
+Conda.add("seaborn")
 Pkg.add("PyPlot")
 ```
+In most cases, Julia should take care of this for you.
 
 ### Other dependancies
 
-For Qlab.jl to function in Julia v1.0, you'll need the newer version of code than what is in the registry:
-```
-(v1.0) pkg> add https://github.com/BBN-Q/QuantumTomography.jl#v0.0.4
-(v1.0) pkg> add https://github.com/BBN-Q/Cliffords.jl#master
-```
-Qlab.jl depends on several other Julia packages that have biniary dependencies.  These should mostly be taken care of by the package manager.  One important exception is HDF5 and its libhdf5 dependancy.  The version of libhdf5 which produced any data files you want to analyze must match the library version used to create the files.  You may need to add the path the the right version of libhdf5 to the Libdl path in Julia and rebuild HDF5:
+Qlab.jl depends on several other Julia packages that have biniary dependencies.  These should mostly be taken care of by the package manager.  One important exception is HDF5 and its libhdf5 dependancy.  This library manages the handling of HDF5 files and is currently maintained for backwards compatibility.  The version of libhdf5 which produced any data files you want to analyze must match the library version used to create the files.  You may need to add the path the the right version of libhdf5 to the Libdl path in Julia and rebuild HDF5:
 ```julia
 push!(Libdl.DL_LOAD_PATH, "/opt/local/lib")
 Pkg.build("HDF5")
 ```
-where `/opt/local/lib` is the path to the correct version of libhdf5.  See the documentation from HDF5.jl for more details.  Currently only version of hdf5 1.8.2 - 1.8.17 are supported.
+where `/opt/local/lib` is the path to the correct version of libhdf5.  See the documentation from HDF5.jl for more details.  Currently only version of hdf5 1.8.2 - 1.8.17 are supported.  If you're not planning to use HDF5 files, you shouldn't have to worry about the library versions matching.
 
 ## Copyright
 
