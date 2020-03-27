@@ -10,4 +10,4 @@ using Qlab
 
 include("test-digitize.jl")
 include("test-common-fits.jl")
-include("test_SavitskyGolay.jl")
+include("test_SavitzkyGolay.jl")

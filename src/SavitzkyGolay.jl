@@ -1,19 +1,19 @@
 using LinearAlgebra: pinv
 using DSP: conv
 
-export savitsky_golay_filter
+export savitzky_golay_filter
 
 """
-	savitsky_golay_filter(y::AbstractVector, window_size::Integer, polynomial_order::Integer; deriv_order::Integer = 0, boundary_mode = :interpolation)
+	savitzky_golay_filter(y::AbstractVector, window_size::Integer, polynomial_order::Integer; deriv_order::Integer = 0, boundary_mode = :interpolation)
 
-Apply Savitsky-Golay polynomial smoothing to input data `y` using a polynomial of order `polynomial_order` fit to a moving window `window_size` points wide. Optionally derivatives can be taken by specifying the `deriv_order` and the caller is responsible for the appropriate scaling by the point spacing. Handling of data within half the window size is specified by `boundary_mode`. When set to `:interpolation` the polynomial fit will be used; when set to `:nearest` the data will be padded using the edge values before convolution and the valid portion will then be returned.  
+Apply Savitzky-Golay polynomial smoothing to input data `y` using a polynomial of order `polynomial_order` fit to a moving window `window_size` points wide. Optionally derivatives can be taken by specifying the `deriv_order` and the caller is responsible for the appropriate scaling by the point spacing. Handling of data within half the window size is specified by `boundary_mode`. When set to `:interpolation` the polynomial fit will be used; when set to `:nearest` the data will be padded using the edge values before convolution and the valid portion will then be returned.  
 
 # References
 1. Savitzky, A., & Golay, M. J. E. (1964). Smoothing and Differentiation of Data by Simplified Least Squares Procedures. Analytical Chemistry, 36(8), 1627–1639. https://doi.org/10.1021/ac60214a047
 2. Steinier, J., Termonia, Y., & Deltour, J. (1972). Comments on Smoothing and differentiation of data by simplified least square procedure. Analytical Chemistry, 44(11), 1906–1909. https://doi.org/10.1021/ac60319a045
 3. Press, W. H., & Teukolsky, S. A. (1990). Savitzky-Golay Smoothing Filters. Computers in Physics, 4(6), 669. https://doi.org/10.1063/1.4822961
 """
-function savitsky_golay_filter(y::AbstractVector, window_size::Integer, polynomial_order::Integer; deriv_order::Integer = 0, boundary_mode = :interpolation)
+function savitzky_golay_filter(y::AbstractVector, window_size::Integer, polynomial_order::Integer; deriv_order::Integer = 0, boundary_mode = :interpolation)
 
 	# input validity checks
    	@assert isodd(window_size) "Window size must be an odd integer, i.e. fitting 2m + 1 points around the current value."
