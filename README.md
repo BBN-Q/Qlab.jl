@@ -8,7 +8,7 @@ Data manipulation and analysis tools tailored for quantum computing experiments 
 ## Installation
 
 ```
-(v1.0) pkg> add https://github.com/BBN-Q/Qlab.jl
+(v1.3) pkg> add https://github.com/BBN-Q/Qlab.jl
 ```
 The code base also uses some system tools and python libraries for building libraries and plotting data with PyPlot.jl.  You'll want to make sure your system has these.
 
