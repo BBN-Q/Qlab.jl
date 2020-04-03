@@ -1,4 +1,4 @@
-using JSON, Compat, CSV, Mmap, HDF5, Dates, DataStructures, YAML
+using JSON, Compat, Mmap, HDF5, Dates, DataStructures, YAML
 
 """
     load_data(filename)
@@ -7,19 +7,44 @@ Load data file
 """
 # add functionality to read new Auspex data files (format on develop branch)
 
-function load_data(filename::AbstractString)
-    datasets    = Dict{String, Array{Any}}()
+function load_data(filename::AbstractString; load_var = false)
+    # maintain original data format when variance is not avilable for compatibility with plotters and other data analysis. Use variance for tomography
+    if load_var
+        datasets    = Dict{String, Dict{String, Array{Any}}}()
+    else
+        datasets    = Dict{String, Array{Any}}()
+    end
     descriptors = Dict{String,Any}()
     # per qubit
     for group in readdir(filename)
-        datafile = filter(x-> occursin(".dat", x), readdir(joinpath(filename, group)))
+        if load_var
+            datasets[group] = Dict{String, Any}()
+        end
+        datafile = filter(x-> occursin("data.dat", x), readdir(joinpath(filename, group)))
+        varfile = filter(x-> occursin("variance.dat", x), readdir(joinpath(filename, group)))
         metafile = filter(x-> occursin("meta", x), readdir(joinpath(filename, group)))
         metadata = JSON.parsefile(joinpath(filename, group, metafile[1]), dicttype=DataStructures.OrderedDict)
         open(joinpath(filename, group, datafile[1]), "r") do op
             dims = length(metadata["shape"])>1 ? tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
             data = Mmap.mmap(op, Array{Complex{Float64},1}, prod(dims))
             data = reshape(data, reverse(dims))
-            datasets[group] = data
+            if load_var
+                datasets[group]["data"] = data
+            else
+                datasets[group] = data
+            end
+        end
+        if load_var
+            if ~isempty(varfile)
+                open(joinpath(filename, group, varfile[1]), "r") do op
+                    dims = length(metadata["shape"])>1 ? tuple(metadata["shape"]...) : tuple(metadata["shape"][1],1)
+                    data = Mmap.mmap(op, Array{Complex{Float64},1}, prod(dims))
+                    data = reshape(data, reverse(dims))
+                    datasets[group]["variance"] = data
+                end
+            else
+                print("Variance not available")
+            end
         end
         descriptors[group] = metadata
     end
@@ -32,7 +57,7 @@ end
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 auspex: boolean for file format (default = true)
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), h5=false)
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), h5=false, load_var=false)
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
   #regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
@@ -47,7 +72,7 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
     return
   end
   filename = joinpath(datapath, subdir, files[1])
-  h5 ? load_h5_data(filename) : load_data(filename)
+  h5 ? load_h5_data(filename) : load_data(filename, load_var=false)
 end
 
 ## TO BE UPDATED

@@ -86,11 +86,12 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
-        push!(obs, U' * op * U)
+        push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
     end
+    #return measOps
     # in order to constrain the trace to unity, add an identity observerable
     # and a corresponding value to expResults
-    push!(obs, eye(ComplexF64, size(measOps[1])...))
+    push!(obs, Diagonal((1.0)*fill(I.λ, size(measOps[1])))) # this can be replaced with I(size(measOps[1])) for Julia>=1.3
     expResults2 = [expResults; 1]
     # corresponding variance chosen arbitrarily (it should be very small)
     varMat2 = [varMat; minimum(varMat)]
@@ -102,7 +103,6 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     end
     return ρest
 end
-
 """
     QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
 
@@ -122,7 +122,7 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
-        push!(obs, U' * op * U)
+        push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
     end
     tomo = LSStateTomo(obs)
 
