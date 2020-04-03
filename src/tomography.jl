@@ -1,4 +1,4 @@
-using QuantumTomography, Cliffords
+using QuantumTomography, Cliffords, LinearAlgebra
 
 """
     tomo_gate_set(nbrQubits, nbrPulses; pulse_type, prep_meas)
@@ -133,7 +133,7 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
     return ρest
 end
 
-function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
+function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
 
     measOps = Matrix{Float64}[]
     tomoData = Float64[]
@@ -142,17 +142,17 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubit
 
     for data_q in values(data)
         # Average over calibration repeats
-        data_ql = haskey(data_q,"Data") ? data_q["Data"] : data_q["Correlator"]
-        calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
-        avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), 1)
-        # Pull out the calibrations as diagonal measurement operators
-        push!(measOps, diagm(avgCalData[:]))
+            data_ql = data_q["data"]
+            calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
+            avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
+            # Pull out the calibrations as diagonal measurement operators
+            push!(measOps, diagm(0 => avgCalData[:]))
 
-        #The data to invert
-        append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]) )
+            #The data to invert
+            append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]) )
 
-        #variance
-        append!(varData, real(data_q["Variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
+            #variance
+            append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
     end
     # Map each experiment to the appropriate readout pulse
     measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
@@ -166,7 +166,6 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,1}}}, nbrQubit
 
     # Now constrained maximum-likelihood
     rhoML = QST_ML(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
-
     # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 
     return rhoLSQ, rhoML
@@ -179,7 +178,7 @@ Convert a density matrix to a Pauli set vector.
 """
 function rho2pauli(ρ)
     n = round(Int, log2(size(ρ,1)))
-    paulis = sort(allpaulis(n), by=weight)
-    paulivec = [real(trace(ρ * p)) for p in paulis]
+    paulis = sort(allpaulis(n), by=weight, dims=1)
+    paulivec = [real(tr(ρ * p)) for p in paulis]
     return paulivec, paulis
 end
