@@ -217,7 +217,7 @@ function single_shot_fidelities_2D(filenum, datestr; ch_a1 = 1, ch_a2 = 2, grid_
     xpoints = repmat(xpts,1,length(ypts))
     ypoints = repmat(ypts',length(xpts),1)
     ax = fig[:add_subplot](1,1,1)
-    pcolormesh(xpts, ypts, smoothed_mat',cmap = PyPlot.get_cmap("Accent", 5),vmin=0,vmax=4)
+    pcolormesh(xpts, ypts, smoothed_mat',cmap = get_cmap("Accent", 5),vmin=0,vmax=4)
     colorbar(ticks=0:4)
     xlabel(L"$A_1$ (V)")
     ylabel(L"$A_2$ (V)")

@@ -1,7 +1,6 @@
 using LsqFit
 using Optim
 using MicroLogging
-using PyPlot
 using Roots
 
 #Fitting a biased Lorentzian to amplitude data.

@@ -1,4 +1,4 @@
-using KernelDensity, Formatting, PyPlot, Seaborn
+using KernelDensity, Formatting, Seaborn
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)

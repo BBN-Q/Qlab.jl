@@ -1,5 +1,5 @@
 module Qlab
-	using Compat, PyPlot
+	using Compat
 
 	export load_data, load_latest_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitzky_golay, read_records, digitize, unwrap, unwrap!, plot2D, plot1D
 
