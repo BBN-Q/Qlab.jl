@@ -57,7 +57,7 @@ end
 Search file number filenum in folder datapath/subdir. Subdir default is current date in "yymmdd"
 auspex: boolean for file format (default = true)
 """
-function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), h5=false, load_var=false)
+function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(Dates.today(),"yymmdd"), h5=false; load_var=false)
   # optionally, search for filenum instead of filename
   # search in a subdirectory with today's date, if not specified
   #regexpr = auspex? r"(\d{4})(.h5)" : r"(\d+)(_\w+)(.h5)"
