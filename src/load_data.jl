@@ -72,7 +72,7 @@ function load_data(datapath::AbstractString, filenum::Int, subdir=Dates.format(D
     return
   end
   filename = joinpath(datapath, subdir, files[1])
-  h5 ? load_h5_data(filename) : load_data(filename, load_var=false)
+  h5 ? load_h5_data(filename) : load_data(filename, load_var=load_var)
 end
 
 ## TO BE UPDATED
