@@ -239,7 +239,7 @@ function plot2D_matlab(data, quad = :real; normalize=false)
   ylim([minimum(ypoints),maximum(ypoints)])
 end
 
-function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_width=0.6)
+function pauli_set_plot(rho; rho_ideal=[], fig_width=10, fig_height=3.5, bar_width=0.6)
     pauli_vec, pauli_ops = rho2pauli(rho)
     figure(figsize=(fig_width,fig_height))
     ind = 1:length(pauli_vec)
@@ -247,8 +247,8 @@ function pauli_set_plot(rho; rho_ideal=[], fig_width=5, fig_height=3.5, bar_widt
         pauli_vec_ideal, _  = rho2pauli(rho_ideal)
         bar(ind, pauli_vec_ideal, bar_width, color="green", label=L"$\rho_{ideal}$")
     end
-    bar(ind, pauli_vec, bar_width, label=L"$\rho_{actual}$")
-    xticks(ind, map(string,pauli_ops))
+    bar(ind, pauli_vec[:], bar_width, label=L"$\rho_{actual}$")
+    xticks(ind, map(string,pauli_ops[:]))
     ylim([-1.05,1.05])
     xlabel("Pauli operator")
     ylabel("Expectation value")
