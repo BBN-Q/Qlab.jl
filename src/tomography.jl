@@ -82,7 +82,7 @@ Function to perform least-squares inversion of state tomography data.
 """
 function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
-    obs = Matrix{}[]
+    obs = Matrix{Complex{Float64}}[]
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
@@ -118,7 +118,7 @@ Function to perform maximum-likelihood quantum state tomography.
 """
 function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
-    obs = Matrix{}[]
+    obs = Matrix{Complex{Float64}}[]
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
