@@ -1,14 +1,27 @@
 using QuantumTomography, Cliffords, LinearAlgebra
 
 """
-    tomo_gate_set(nbrQubits, nbrPulses; pulse_type, prep_meas)
+    tomo_gate_set(nbrQubits, nbrAxes; pulse_type::String="Clifford", prep_meas::Integer=1)
 
-Return a set of state preparation or readout unitary gates.
-pulse_type: prepared states/meas. axes
-prep_meas: 1 for prep., 2 for meas. pulses
+Return a set of state preparation or readout unitary gates for a give `nbrQubits` along a given `nbrAxes`.
+
+# Arguments
+-  nbrAxes::Integer`: number of single-qubit axes ∈ [4,6,12]
+- `pulse_type::String="Clifford"`: prepared states/meas. axes
+- `prep_meas::Integer=1`: 1 for prep gates, 2 for meas. gates
+
+# Examples
+```julia-repl
+julia> tomo_gate_set(2, 4)
+16-element Array{Array{Complex{Float64},2},1}:
+[1.0 - 0.0im -0.0 + 0.0im -0.0 + 0.0im 0.0 + 0.0im; -0.0 + 0.0im 1.0 - 0.0im
+ 0.0 + 0.0im -0.0 + 0.0im; -0.0 + 0.0im 0.0 + 0.0im 1.0 - 0.0im -0.0 + 0.0im;
+ 0.0 + 0.0im -0.0 + 0.0im -0.0 + 0.0im 1.0 - 0.0im]
+[-0.7071067811865477 + 0.0im 0.0 + 0.7071067811865475im ...
+```
 """
-function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 1)
-    if nbrPulses==4
+function tomo_gate_set(nbrQubits, nbrAxes; pulse_type="Clifford", prep_meas = 1)
+    if nbrAxes==4
         # Four pulse set
         if pulse_type == "Clifford"
             Uset1Q = [complex(RI),
@@ -28,9 +41,10 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
                           exp(+im*acos(-1/3)*X)*exp(-im*2pi/3*Z)]
             end
         else
-            error("Invalid prep./meas. pulse pulse_type")
+            error("Invalid prep./meas. pulse pulse_type.
+            Must be ∈ {\"Tetra\", \"Clifford\"}")
         end
-    elseif nbrPulses==6
+    elseif nbrAxes==6
         # Six pulse set
         Uset1Q = [complex(RI),
                   exp(-im*pi/4*X),
@@ -38,7 +52,7 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
                   exp(-im*pi/4*Y),
                   exp(+im*pi/4*Y),
                   -im*X]
-    elseif nbrPulses==12
+    elseif nbrAxes==12
         # 12 pulse set
         Uset1Q = [complex(RI),
                   -im*X,
@@ -53,7 +67,7 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
                   exp(-im*pi/3*(+X-Y-Z)/sqrt(3)),  #-X+Y+Z -120 (equivalent to X-Y-Z 120)
                   exp(-im*pi/3*(-X-Y+Z)/sqrt(3))]  #X+Y-Z -120 (equivalent to -X-Y+Z 120)
     else
-        error("Invalid number of pulses");
+        error("Invalid number of pulses.  Must be ∈ [4,6,12]");
     end
 
     # Now the gate set is the cartesian product of the 1Q gate set over the
@@ -68,17 +82,24 @@ function tomo_gate_set(nbrQubits, nbrPulses; pulse_type="Clifford", prep_meas = 
 end
 
 """
-    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
 
 Function to perform least-squares inversion of state tomography data.
 
-   + expResults : data array
-   + varmat : covariance matrix for data
-   + measPulseMap : array mapping each experiment to a measurement readout
+# Arguments
+- `expResults::Array{Number}`: data array
+- `varmat::Array{Number}`: covariance matrix for data
+- `measPulseMap::`: array mapping each experiment to a measurement readout
      pulse
-   + measOpMap: array mapping each experiment to a measurement channel
-   + measPulseUs : array of unitaries of measurement pulses
-   + measOps : array of measurement operators for each channel
+- `measOpMap::`: array mapping each experiment to a measurement channel
+- `measPulseUs::`: array of unitaries of measurement pulses
+- `measOps::`: array of measurement operators for each channel
+
+# Examples
+```julia-repl
+julia> QST_LSQ(2, 4)
+
+```
 """
 function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
@@ -104,17 +125,24 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     return ρest
 end
 """
-    QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps, n)
+    QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
 
 Function to perform maximum-likelihood quantum state tomography.
 
-   + expResults : data array
-   + varmat : covariance matrix for data
-   + measPulseMap : array mapping each experiment to a measurement readout
+# Arguments
+- `expResults::Array{Number}`: data array
+- `varmat::Array{Number}`: covariance matrix for data
+- `measPulseMap::`: array mapping each experiment to a measurement readout
      pulse
-   + measOpMap: array mapping each experiment to a measurement channel
-   + measPulseUs : array of unitaries of measurement pulses
-   + measOps : array of measurement operators for each channel
+- `measOpMap::`: array mapping each experiment to a measurement channel
+- `measPulseUs::`: array of unitaries of measurement pulses
+- `measOps::`: array of measurement operators for each channel
+
+# Examples
+```julia-repl
+julia> QST_ML(2, 4)
+
+```
 """
 function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
     # construct the vector of observables for each experiment
@@ -172,13 +200,29 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}, 
 end
 
 """
-    rho2pauli(rho)
+    rho2pauli(ρ)
 
-Convert a density matrix to a Pauli set vector.
+Convert a density matrix, ρ, to a Pauli set vector.
+
+# Examples
+```julia-repl
+julia> using Cliffords,
+julia> foo = randn(ComplexF64, 2, 2)
+2×2 Array{Complex{Float64},2}:
+  0.310878-1.27868im    0.28776+1.87167im
+ -0.904544+0.015083im  0.272544+0.620223im
+julia> rho2pauli(foo)
+([0.5834214596710264, -0.616783378678339, -1.8565830050748344,
+ 0.03833362063824197], Pauli{1}[+I, +X, +Y, +Z])
+```
 """
 function rho2pauli(ρ)
     n = round(Int, log2(size(ρ,1)))
-    paulis = sort(allpaulis(n), by=weight, dims=1)
+    if n == 1 # special case for vectors
+        paulis = sort(allpaulis(n), by=weight)
+    else
+        paulis = sort(allpaulis(n), dims=1, by=weight)
+    end
     paulivec = [real(tr(ρ * p)) for p in paulis]
     return paulivec, paulis
 end
