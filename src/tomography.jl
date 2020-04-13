@@ -3,10 +3,11 @@ using QuantumTomography, Cliffords, LinearAlgebra
 """
     tomo_gate_set(nbrQubits, nbrAxes; pulse_type::String="Clifford", prep_meas::Integer=1)
 
-Return a set of state preparation or readout unitary gates for a give `nbrQubits` along a given `nbrAxes`.
+Return a set of state preparation or readout unitary gates for a give
+`nbrQubits` along a given `nbrAxes`.
 
 # Arguments
--  nbrAxes::Integer`: number of single-qubit axes ∈ [4,6,12]
+- `nbrAxes::Integer`: number of single-qubit axes ∈ [4,6,12]
 - `pulse_type::String="Clifford"`: prepared states/meas. axes
 - `prep_meas::Integer=1`: 1 for prep gates, 2 for meas. gates
 
@@ -84,7 +85,8 @@ end
 """
     QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
 
-Function to perform least-squares inversion of state tomography data.
+Function to perform unconstrained least-squares inversion of state
+tomography data.
 
 # Arguments
 - `expResults::Array{Number}`: data array
@@ -101,7 +103,12 @@ julia> QST_LSQ(2, 4)
 
 ```
 """
-function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+function QST_FLSQ(expResults,
+                  varMat,
+                  measPulseMap,
+                  measOpMap,
+                  measPulseUs,
+                  measOps)
     # construct the vector of observables for each experiment
     obs = Matrix{Complex{Float64}}[]
     for ct in 1:length(expResults)
@@ -125,6 +132,48 @@ function QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measO
     return ρest
 end
 """
+    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+
+Function to perform constrained least-squares quantum state tomography.
+
+# Arguments
+- `expResults::Array{Number}`: data array
+- `varmat::Array{Number}`: covariance matrix for data
+- `measPulseMap::`: array mapping each experiment to a measurement readout
+     pulse
+- `measOpMap::`: array mapping each experiment to a measurement channel
+- `measPulseUs::`: array of unitaries of measurement pulses
+- `measOps::`: array of measurement operators for each channel
+
+# Examples
+```julia-repl
+julia> QST_ML(2, 4)
+
+```
+"""
+function QST_LSQ(expResults,
+                 varMat,
+                 measPulseMap,
+                 measOpMap,
+                 measPulseUs,
+                 measOps)
+    # construct the vector of observables for each experiment
+    obs = Matrix{Complex{Float64}}[]
+    for ct in 1:length(expResults)
+        U = measPulseUs[measPulseMap[ct]]
+        op = measOps[measOpMap[ct]]
+        push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
+    end
+    tomo = LSStateTomo(obs)
+
+    ρest, obj, status = fit(tomo, expResults, varMat)
+    if status != :Optimal
+        println("LSStateTomo fit return status: $status")
+    end
+    return ρest
+end
+
+"""
     QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
 
 Function to perform maximum-likelihood quantum state tomography.
@@ -144,7 +193,12 @@ julia> QST_ML(2, 4)
 
 ```
 """
-function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+function QST_ML(expResults,
+                varMat,
+                measPulseMap,
+                measOpMap,
+                measPulseUs,
+                measOps; n=100_000, β=0.0, maxiter=5000, ϵ=1000)
     # construct the vector of observables for each experiment
     obs = Matrix{Complex{Float64}}[]
     for ct in 1:length(expResults)
@@ -152,16 +206,38 @@ function QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOp
         op = measOps[measOpMap[ct]]
         push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
     end
-    tomo = LSStateTomo(obs)
+    tomo = MLStateTomo(obs)
 
-    ρest, obj, status = fit(tomo, expResults, varMat)
+    ρest, obj, status = fit(tomo,
+                            expResults,
+                            maxiter=maxiter,
+                            δ=1/ϵ,
+                            λ=β)
     if status != :Optimal
-        println("LSStateTomo fit return status: $status")
+        println("MLStateTomo fit return status: $status")
     end
     return ρest
 end
 
-function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}, nbrQubits, nbrPulses, nbrCalRepeats=2)
+"""
+    analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                          nbrQubits::Int,
+                          nbrAxes::Int ∈ [4,6,12];
+                          nbrCalRepeats::Int=2)
+
+Function to setup and run quantum state tomography for a given number of qubits
+and measurement axes.
+
+# Examples
+julia> datapath = "/path/to/data/folder"
+julia> data = load_data(datapath,24,"200315",load_var=true); #26
+julia> rhoLSQ,rhoML  = Qlab.analyzeStateTomo(data[1],2,4);
+julia> Qlab.pauli_set_plot(rhoLSQ)
+"""
+function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                          nbrQubits,
+                          nbrAxes;
+                          nbrCalRepeats=2)
 
     measOps = Matrix{Float64}[]
     tomoData = Float64[]
@@ -183,17 +259,27 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}, 
             append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
     end
     # Map each experiment to the appropriate readout pulse
-    measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
-    measPulseMap = repeat(1:nbrPulses^nbrQubits, outer=numMeas)
+    measOpMap = repeat(1:numMeas, inner=nbrAxes^nbrQubits)
+    measPulseMap = repeat(1:nbrAxes^nbrQubits, outer=numMeas)
     # Use a helper to get the measurement unitaries.
-    measPulseUs = tomo_gate_set(nbrQubits, nbrPulses)
+    measPulseUs = tomo_gate_set(nbrQubits, nbrAxes)
 
     # Now call the inversion routines
     # First least squares
-    rhoLSQ = QST_LSQ(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
+    rhoLSQ = QST_LSQ(tomoData,
+                     varData,
+                     measPulseMap,
+                     measOpMap,
+                     measPulseUs,
+                     measOps)
 
     # Now constrained maximum-likelihood
-    rhoML = QST_ML(tomoData, varData, measPulseMap, measOpMap, measPulseUs, measOps)
+    rhoML = QST_ML(tomoData,
+                   varData,
+                   measPulseMap,
+                   measOpMap,
+                   measPulseUs,
+                   measOps)
     # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 
     return rhoLSQ, rhoML
