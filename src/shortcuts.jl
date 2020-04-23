@@ -1,35 +1,57 @@
 using HDF5, Compat, KernelDensity
 
 """
-    cal_data(data; bit, nqubits, num_repeats)
+    cal_data(data::Array; bit = 1, nqubits = 1, num_repeats = 2, rm_cals=true)
 
-Normalize data using calibration points
-bit: 1, 2, 3... from LSB to MSB
-nqubits: number of qubits
-num_repeats: number of calibration points per computational state
+Normalize data using calibration points.  Note the data should not be complex.
+
+# Arguments
+  - `data::Array{Float64}`: data to normalize with cals at the end
+  - `bit::Int`: 1, 2, 3... from LSB to MSB
+  - `nqubits::Int`: number of qubits
+  - `num_repeats::Int`: number of calibration points per computational state
+  - `rm_cals::boolean`: remove calibration points from the end of the sequences
+
+# Examples
+```julia-repl
+julia> data = vcat(rand(10,1), [0,0,1,1])
+julia> Qlab.cal_data(data)
+-0.037458  -0.763034  -0.830473  -1.69414  …  -1.25552  -2.45348  -2.45213
+```
 """
-function cal_data(data::Array; bit = 1, nqubits = 1, num_repeats = 2)
+function cal_data(data::Array;
+                  bit = 1,
+                  nqubits = 1,
+                  num_repeats = 2,
+                  rm_cals = true)
 	zero_cal = mean(data[end-num_repeats*(2^nqubits)+1:end-num_repeats*(2^nqubits-1)])
 	one_cal = mean(data[end-num_repeats*(2^nqubits-2^(bit-1))+1:end-num_repeats*(2^nqubits-2^(bit-1)-1)])
 	scale_factor = -(one_cal - zero_cal)/2;
-	data = data[1:end-2*num_repeats]
-	data = (data - zero_cal)/scale_factor + 1
+	if rm_cals
+		data = data[1:end-2*num_repeats]
+	end
+	data = (data .- zero_cal)/scale_factor .+ 1
 end
 
 """
-  cal_data(data; qubit, cal0, cal1)
+  cal_data(data; qubit="", cal0="0", cal1="1")
 
-Normalize data with reference measurements defined in metadata. Format used in Auspex.
-Assume data with structure: [data, data, ...., cal0, cal0, ..., cal1, cal1, cal1, ..., data, ..., cal0, ...]
-The number of data and cals can be different for each set, as long as they are contiguous
+Normalize data with reference measurements defined in metadata. Format used in
+Auspex.  Assume data with structure: [data, data, ...., cal0, cal0, ..., cal1,
+cal1, cal1, ..., data, ..., cal0, ...].  The number of data and cals can be
+different for each set, as long as they are contiguous.
 
-data: dictionary (Auspex format)
-qubit: qubit name
-cal0/1: reference measurement for qubit in 0/1
+# Arguments
+  - `data`: dictionary (Auspex format)
+  - `qubit::string`: qubit name
+  - `cal0/1::string`: reference measurement for qubit in 0/1
 """
 
 function cal_data(data::Tuple{Dict{String,Array{Any,N} where N},Dict{String,Any}};
-     qubit::String = "", cal0::String = "0", cal1::String = "1", quad = :real)
+                  qubit::String = "",
+                  cal0::String = "0",
+                  cal1::String = "1",
+                  quad = :real)
     if length(collect(keys(data[1]))) == 1
         qubit = collect(keys(data[1]))[1]
     elseif isempty(qubit)
@@ -67,7 +89,7 @@ function cal_data(data::Tuple{Dict{String,Array{Any,N} where N},Dict{String,Any}
 end
 
 """
-    get_fidelity(shots_0, shots_1; nbins, showPlot)
+    get_fidelity(shots_0, shots_1; nbins=51, showPlot=false)
 
 Get readout fidelity from single-shot measurements
 """
@@ -91,16 +113,17 @@ end
 """
     nanmean(vec)
 
-Calculate the mean ignoring nan values
+Calculate the mean of vec, ignoring nan values.
 """
 function nanmean(vec)
     return sum(.~isnan.(vec).*vec)/length(findall(.~isnan.(vec)))
 end
 
 """
-    get_extr_loc(M, dim; getmax)
+    get_extr_loc(M, dim; getmax=true)
 
-Return index and value of max/min (getmax = True/False) in each column/row (dim=1/2) of M
+Return index and value of max/min (getmax = True/False) in each column/row
+(dim=1/2) of M
 """
 function get_extr_loc(M, dim, getmax = true)
   #return index and value of max/min in each column (1)/row (2)
@@ -153,13 +176,22 @@ function get3pops(data)
 end
 
 """
-    get_feedback_fidelity(data, nqubits, nrounds, bit; cal_repeats = 2, target_state = 0)
+    get_feedback_fidelity(data::Int,
+                          nqubits::Int,
+                          nrounds::Int,
+                          bit;
+                          cal_repeats=2,
+                          target_state=0)
 
-get fidelity for resetting 'bit' in a 'nqubits' register. Note that this estimate assumes no measurement crosstalk.
-nrounds: feedback rounds
-bit: 1, 2, 3... from LSB to MSB
-cal_repeats: number of calibration points per computational state
-target_state: 0/1 to target either qubit state
+Get fidelity for resetting 'bit' in a 'nqubits' register. Note that this
+estimate assumes no measurement crosstalk.
+
+
+# Arguments
+  - `nrounds::Int`: number of feedback rounds
+  - `bit`: 1, 2, 3... from LSB to MSB
+  - `cal_repeats`: number of calibration points per computational state
+  - `target_state`: 0/1 to target either qubit state
 """
 function get_feedback_fidelity(data, nqubits, nrounds, bit; cal_repeat = 2, target_state = 0)
     zero_cal = mean(data[end-cal_repeat*(2^nqubits)+1:end-cal_repeat*(2^nqubits-1)])
@@ -205,7 +237,10 @@ function unwrap(ϕ::Array{T}; discont=π) where T <: AbstractFloat
   return unwrap!(copy(ϕ), discont=discont)
 end
 
-function CR_hamiltonian(datapath, filelist, subdir=Dates.format(Dates.today(),"yymmdd"), params_estimate = [5,5,0,0,0,1])
+function CR_hamiltonian(datapath,
+                        filelist,
+                        subdir=Dates.format(Dates.today(),"yymmdd"),
+                        params_estimate = [5,5,0,0,0,1])
     IX = zeros(length(filelist))
     IY = zeros(length(filelist))
     IZ = zeros(length(filelist))
