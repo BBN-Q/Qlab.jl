@@ -28,7 +28,7 @@ function cal_data(data::Array;
 	one_cal = mean(data[end-num_repeats*(2^nqubits-2^(bit-1))+1:end-num_repeats*(2^nqubits-2^(bit-1)-1)])
 	scale_factor = -(one_cal - zero_cal)/2;
 	if rm_cals
-		data = data[1:end-2*num_repeats]
+		data = data[1:end-(2^nqubits)*num_repeats]
 	end
 	data = (data .- zero_cal)/scale_factor .+ 1
 end
