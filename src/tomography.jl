@@ -304,6 +304,219 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
     return rhoLSQ, rhoML
 end
 
+"""
+    _create_ml_POVM(numQubits::Int)
+
+Create the textbook POVM for a given qubit system
+"""
+function _create_ml_POVM(numQubits::Int)
+    mlPOVM = Array{ComplexF64}[]
+    if numQubits == 1
+        push!(mlPOVM, diagm([1.,0.]))
+        push!(mlPOVM, diagm([0.,1.]))
+    elseif numQubits == 2
+        push!(mlPOVM, diagm([1.,0.,0.,0.]))
+        push!(mlPOVM, diagm([0.,1.,0.,0.]))
+        push!(mlPOVM, diagm([0.,0.,1.,0.]))
+        push!(mlPOVM, diagm([0.,0.,0.,1.]))
+    end
+    return mlPOVM
+end
+
+"""
+    _parese_exp_num(n::Int, n_qubits::Int)
+
+Determine the number of calibration points, calibration repeats, axes in a
+given tomography data set.
+
+# Arguments
+- `n` : total number of experimental data points including
+        calibration points
+- `n_qubits` : number of qubits represented in the data set.  Only one
+               and two qubit tomography is supported.
+# Returns
+- `numCalRepeats::Int` : number of repeats for each calibration point
+- `numCals::Int` : the total number of calibration points in an experiment
+- `numAxes::Int` : the number of of axes were observations were made.
+                    This must be 4 or 6.
+"""
+function _parese_exp_num(numDataPoints::Int, numQubits::Int)
+    numCalRepeats = 0
+    nbr_basis_states = (numQubits == 1) ? 2 : 4
+    # determine the cal repeats number
+    for i in [4,6].^numQubits
+        numCals_guess = numDataPoints - i
+        nbrRepeats_guess = numCals_guess/nbr_basis_states
+        if nbrRepeats_guess % 1 != 0
+            # correct number will be a whole number
+            continue
+        end
+        if !isposdef(nbrRepeats_guess)
+            # filter out obviously wrong guesses
+            continue
+        end
+        if !iseven(Int(nbrRepeats_guess))
+            @warn("Assuming numCalRepeats is even!")
+            continue
+        end
+        if !ispow2(Int(nbrRepeats_guess))
+            @warn("Assuming nbr repeats is a power of 2!")
+            continue
+        end
+        numCalRepeats = nbrRepeats_guess
+    end
+    if numQubits == 1
+        numCals = numCalRepeats * 2
+    elseif numQubits == 2
+        numCals = numCalRepeats * 4
+    end
+
+    #determine the number of axes
+    if numQubits == 2
+        numAxes = sqrt(numDataPoints-numCals)
+    elseif numQubits ==1
+        numAxes = numDataPoints-numCals
+    end
+    # assert numAxes must equal [4,6]
+    if !(numAxes in [4,6])
+        error("Obervables must be 4 or 6.  Please check your data!")
+    end
+    return numCals, numCalRepeats, numAxes
+end
+
+"""
+    _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                           desc::Dict{String,Any})
+Preprocess the data
+
+determine the number of qubits, and return organized datasets based on the
+structure of the data.  Single dimensional data is assumed to be averaged
+and 2D data is assumed to be (experiment, shot) data
+"""
+function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                           desc::Dict{String,Any})
+    numDataPoints = 0
+    corrData = false
+    varData = false
+
+    # load  and parse the data
+    println("Preprocessing data")
+    qubit_data_keys = filter(x -> occursin(r"([qQ]\d?\d?\d?)[ -_](\w*)", x), keys(data))
+
+    qubits = []
+    labels = []
+    for i in qubit_data_keys
+        foo = match(r"([qQ]\d?\d?\d?)[ -_](\w*)", i)
+        push!(qubits, string(foo[1]))
+        push!(labels, string(foo[2]))
+    end
+    unique!(qubits)
+    unique!(labels)
+    println("Found $(length(qubits)) sets of qubit data: " * string([string(i) * " " for i in qubits]...))
+    println("Found $(length(labels)) sets of qubit data labels: " * string([string(i) * " " for i in labels]...))
+    numQubits = length(qubits)
+    numDatasets = length(labels)
+
+    #pull out any correlation
+    correlation_data_sets = []
+    qubit_correlation_keys = filter(x -> occursin(r"([Cc]orrelated?)", x), keys(data))
+    if length(qubit_correlation_keys) != 0
+        println("Correlation data found... ✓")
+        corrData = true
+    else
+        println("Correlation data found... no")
+        corrData = false
+    end
+
+    #check that atleast one variance dataset exists
+    variance_data = []
+    for i in keys(data)
+        if length(filter(x -> occursin(r"([Vv]ariance)", x), keys(data[i]))) != 0
+            println("Variance data found for dataset: $(i)")
+            varData = true
+        else
+            println("Variance data found... no")
+            varData = false
+        end
+    end
+
+    # get the data size and classify them
+    tomo_data_idx = empty([], String)
+    shot_data_idx = empty([], String)
+    for i in keys(data)
+        data_size = size(data[i]["data"])
+        if data_size[1] == 1
+            println("Main data set: " * string(i))
+            push!(tomo_data_idx, i)
+            numDataPoints = data_size[2]
+        elseif data_size[1] > 1
+            println("Shots data set: " * string(i))
+            push!(shot_data_idx, i)
+        end
+    end
+#     tomoDataSets = filter((k,v) -> k in tomo_data_idx, data)
+#     shotDataSets = filter((k,v) -> k in shot_data_idx, data)
+    tomoDataSets = filter(p -> p.first in tomo_data_idx, data)
+    shotDataSets = filter(p -> p.first in shot_data_idx, data)
+    return numQubits, numDatasets, corrData, varData, numDataPoints,
+                                                      tomoDataSets,
+                                                      shotDataSets
+end
+"""
+State tomography object
+
+This holds all the infromation necessary to do state and process tomography.
+
+The object is constructed by passing it a tomography data file or a dataset
+and its descriptor loaded from load_data.  Once created, this object can be
+passed directly to the any of the tomographyic reconstruction methods.
+"""
+struct StateTomo
+    numQubits::Int
+    numDatasets::Int
+    corrData::Bool
+    varData::Bool
+
+    tomoDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
+    shotDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
+
+    numAxes::Int
+    numCals::Int
+    numCalRepeats::Int
+    numDataPoints::Int
+
+    mlPOVM::Array{Matrix{ComplexF64}}
+
+    """
+    Basic constructor
+    """
+    function StateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                        desc::Dict{String,Any})
+
+        numQubits,
+        numDatasets,
+        corrData,
+        varData,
+        numDataPoints,
+        tomoDataSets,
+        shotDataSets = _pre_process_data(data, desc)
+
+        ############################################################
+        numCals, numCalRepeats, numAxes = _parese_exp_num(numDataPoints,
+                                                          numQubits)
+        ################################################################
+        mlPOVM = _create_ml_POVM(numQubits)
+        ################################################################
+        new(numQubits, numDatasets, corrData, varData, tomoDataSets,
+                                                       shotDataSets,
+                                                       numAxes,
+                                                       numCals,
+                                                       numCalRepeats,
+                                                       numDataPoints,
+                                                       mlPOVM)
+    end
+end
+
 function analyzeStateTomo(tomoObj::StateTomo)
 
     data = tomoObj.tomoDataSets
@@ -409,193 +622,4 @@ function rho2pauli(ρ)
     end
     paulivec = [real(tr(ρ * p)) for p in paulis]
     return paulivec, paulis
-end
-
-"""
-State tomography object
-
-This holds all the infromation necessary to do state and process tomography.
-
-The object is constructed by passing it a tomography data file or a dataset
-and its descriptor loaded from load_data.  Once created, this object can be
-passed directly to the any of the tomographyic reconstruction methods.
-
-####################
-
-Preprocess the data
-
-determine the number of qubits, and return organized datasets based on the
-structure of the data.  Single dimensional data is assumed to be averaged
-and 2D data is assumed to be (experiment, shot) data
-
-####################
-
-parese_exp_num(n::Int, n_qubits::Int)
-
-Determine the number of calibration points, calibration repeats, axes in a
-given tomography data set.
-
-# Arguments
-- `n` : total number of experimental data points including
-        calibration points
-- `n_qubits` : number of qubits represented in the data set.  Only one
-               and two qubit tomography is supported.
-# Returns
-- `numCalRepeats::Int` : number of repeats for each calibration point
-- `numCals::Int` : the total number of calibration points in an experiment
-- `numAxes::Int` : the number of of axes were observations were made.
-                    This must be 4 or 6.
-"""
-struct _StateTomo
-    numQubits::Int
-    numDatasets::Int
-    corrData::Bool
-    varData::Bool
-
-    tomoDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
-    shotDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
-
-    numAxes::Int
-    numCals::Int
-    numCalRepeats::Int
-    numDataPoints::Int
-
-    mlPOVM::Array{Matrix{ComplexF64}}
-
-    """
-    Basic constructor
-    """
-    function _StateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
-                        desc::Dict{String,Any})
-
-        numDataPoints = 0
-        corrData = false
-        varData = false
-
-        # load the data
-        println("Preprocessing data")
-        #data, desc = data, desc
-        #parse data
-        qubit_data_keys = filter(x -> occursin(r"([qQ]\d?\d?\d?)[ -_](\w*)", x), keys(data))
-
-        qubits = []
-        labels = []
-        for i in qubit_data_keys
-            foo = match(r"([qQ]\d?\d?\d?)[ -_](\w*)", i)
-            push!(qubits, string(foo[1]))
-            push!(labels, string(foo[2]))
-        end
-        unique!(qubits)
-        unique!(labels)
-        println("Found $(length(qubits)) sets of qubit data: " * string([string(i) * " " for i in qubits]...))
-        println("Found $(length(labels)) sets of qubit data labels: " * string([string(i) * " " for i in labels]...))
-        numQubits = length(qubits)
-        numDatasets = length(labels)
-
-        #pull out any correlation
-        correlation_data_sets = []
-        qubit_correlation_keys = filter(x -> occursin(r"([Cc]orrelated?)", x), keys(data))
-        if length(qubit_correlation_keys) != 0
-            println("Correlation data found... ✓")
-            corrData = true
-        else
-            println("Correlation data found... no")
-            corrData = false
-        end
-
-        #check that atleast one variance dataset exists
-        variance_data = []
-        for i in keys(data)
-            if length(filter(x -> occursin(r"([Vv]ariance)", x), keys(data[i]))) != 0
-                println("Variance data found for dataset: $(i)")
-                varData = true
-            else
-                println("Variance data found... no")
-                varData = false
-            end
-        end
-
-        # get the data size and classify them
-        tomo_data_idx = empty([], String)
-        shot_data_idx = empty([], String)
-        for i in keys(data)
-            data_size = size(data[i]["data"])
-            if data_size[1] == 1
-                println("Main data set: " * string(i))
-                push!(tomo_data_idx, i)
-                numDataPoints = data_size[2]
-            elseif data_size[1] > 1
-                println("Shots data set: " * string(i))
-                push!(shot_data_idx, i)
-            end
-        end
-        tomoDataSets = filter((k,v) -> k in tomo_data_idx, data)
-        shotDataSets = filter((k,v) -> k in shot_data_idx, data)
-
-        ############################################################
-
-        numCalRepeats = 0
-        nbr_basis_states = (numQubits == 1) ? 2 : 4
-        # determine the cal repeats number
-        for i in [4,6].^numQubits
-            numCals_guess = numDataPoints - i
-            nbrRepeats_guess = numCals_guess/nbr_basis_states
-            if nbrRepeats_guess % 1 != 0
-                #println("Invalid! Exp number must be whole")
-                continue
-            end
-            if !isposdef(nbrRepeats_guess)
-                #println("Invalid exp number!")
-                continue
-            end
-            if !iseven(Int(nbrRepeats_guess))
-                @warn("Assuming numCalRepeats is even!")
-                continue
-            end
-            if !ispow2(Int(nbrRepeats_guess))
-                @warn("Assuming nbr repeats is a power of 2!")
-                continue
-            end
-            numCalRepeats = nbrRepeats_guess
-        end
-        if numQubits == 1
-            numCals = numCalRepeats * 2
-        elseif numQubits == 2
-            numCals = numCalRepeats * 4
-        end
-
-        #determine the number of axes
-        if numQubits == 2
-            numAxes = sqrt(numDataPoints-numCals)
-        elseif numQubits ==1
-            numAxes = numDataPoints-numCals
-        end
-        # assert numAxes must equal [4,6]
-        if !(numAxes in [4,6])
-            error("Obervables must be 4 or 6.  Please check your data!")
-        end
-
-        ################################################################
-
-        mlPOVM = Array{ComplexF64}[]
-        if numQubits == 1
-            push!(mlPOVM, diagm([1.,0.]))
-            push!(mlPOVM, diagm([0.,1.]))
-        elseif numQubits == 2
-            push!(mlPOVM, diagm([1.,0.,0.,0.]))
-            push!(mlPOVM, diagm([0.,1.,0.,0.]))
-            push!(mlPOVM, diagm([0.,0.,1.,0.]))
-            push!(mlPOVM, diagm([0.,0.,0.,1.]))
-        end
-
-        ################################################################
-
-        new(numQubits, numDatasets, corrData, varData, tomoDataSets,
-                                                       shotDataSets,
-                                                       numAxes,
-                                                       numCals,
-                                                       numCalRepeats,
-                                                       numDataPoints,
-                                                       mlPOVM)
-    end
 end

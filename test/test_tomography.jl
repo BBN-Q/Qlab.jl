@@ -1,4 +1,4 @@
-using Test, RandomQuantum, QuantumInfo, Cliffords
+using Test, RandomQuantum, QuantumInfo, Cliffords, QuantumTomography
 
 import QuantumInfo.eye
 
