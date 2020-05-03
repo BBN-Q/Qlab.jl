@@ -435,8 +435,9 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
             println("Variance data found for dataset: $(i)")
             varData = true
         else
-            println("Variance data found... no")
+            println("Variance data for $(i) found... no")
             varData = false
+            @warn("You may not be able to do state tomography")
         end
     end
 
