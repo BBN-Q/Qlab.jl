@@ -5,6 +5,7 @@ using QuantumTomography, Cliffords, LinearAlgebra, StatsBase
 
 Return a set of state preparation or readout unitary gates for a give
 `nbrQubits` along a given `nbrAxes`.
+See http://arxiv.org/abs/quant-ph/0308098v1 for more information
 
 # Arguments
 - `nbrAxes::Integer`: number of single-qubit axes ∈ [4,6,12]
@@ -137,18 +138,29 @@ end
 Function to perform constrained least-squares quantum state tomography.
 
 # Arguments
-- `expResults::Array{Number}`: data array
-- `varmat::Array{Number}`: covariance matrix for data
+- `expResults::Array{Number}`: data array.  This is the list of expectation
+                               values for each of the measurements obserables.
+- `varmat::Array{Number}`: variance matrix for data in expResults
 - `measPulseMap::`: array mapping each experiment to a measurement readout
-     pulse
+                    pulse
 - `measOpMap::`: array mapping each experiment to a measurement channel
-- `measPulseUs::`: array of unitaries of measurement pulses
-- `measOps::`: array of measurement operators for each channel
+- `measPulseUs::`: array of unitaries of measurement pulses.  These are
+                   pulses applied before measurement in the experimental data,
+                   mapping the measurement to the correct axis
+- `measOps::`: array of measurement operators for each channel.  In the case of
+               ML tomography, these need to be text book projectors to diagonal states.
+
+# Returns
+- `ρest::Array{Complex{Float64},d}`: d dimensional estimate of the density
+                                     matrix obtained by constrained
+                                     least-squares.
 
 # Examples
 ```julia-repl
-julia> QST_ML(2, 4)
-
+julia> QST_LSQ(expResults, measPulseMap, measOpMap, measPulseUs, measOps)
+2×2 Array{Complex{Float64},2}:
+ 0.295239+2.94858e-14im  -0.21073+0.3957im
+ -0.21073-0.3957im       0.704761-3.64935e-15im
 ```
 """
 function QST_LSQ(expResults,
@@ -174,27 +186,36 @@ function QST_LSQ(expResults,
 end
 
 """
-    QST_ML(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+    QST_ML(expResults, measPulseMap, measOpMap, measPulseUs, measOps)
 
-Function to perform maximum-likelihood quantum state tomography.
+Function to perform maximum-likelihood quantum state tomography.  This function
+is usually wrapped by the analyzeStateTomo function.
 
 # Arguments
-- `expResults::Array{Number}`: data array
-- `varmat::Array{Number}`: covariance matrix for data
+- `expResults::Array{Number}`: data array.  This is the list of expectation
+                               values for each of the measurements obserables.
 - `measPulseMap::`: array mapping each experiment to a measurement readout
-     pulse
+                    pulse
 - `measOpMap::`: array mapping each experiment to a measurement channel
-- `measPulseUs::`: array of unitaries of measurement pulses
-- `measOps::`: array of measurement operators for each channel
+- `measPulseUs::`: array of unitaries of measurement pulses.  These are
+                   pulses applied before measurement in the experimental data,
+                   mapping the measurement to the correct axis
+- `measOps::`: array of measurement operators for each channel.  In the case of
+               ML tomography, these need to be text book projectors to diagonal states.
+
+# Returns
+- `ρest::Array{Complex{Float64},d}`: d dimensional estimate of the density
+                                     matrix obtained by maximum likelihood.
 
 # Examples
 ```julia-repl
-julia> QST_ML(2, 4)
-
+julia> QST_ML(expResults, measPulseMap, measOpMap, measPulseUs, measOps)
+2×2 Array{Complex{Float64},2}:
+ 0.295239+2.94858e-14im  -0.21073+0.3957im
+ -0.21073-0.3957im       0.704761-3.64935e-15im
 ```
 """
 function QST_ML(expResults,
-                varMat,
                 measPulseMap,
                 measOpMap,
                 measPulseUs,
@@ -207,6 +228,9 @@ function QST_ML(expResults,
         push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
     end
     # ML obs must be POVMs -> Hermitian, possitive-semidefinite, and trace 1
+    if length(obs) < 6
+        @warn("State observations do not form a POVM!")
+
     tomo = MLStateTomo(obs)
 
     ρest, obj, status = fit(tomo,
@@ -236,19 +260,20 @@ and measurement axes.
           tomography, the correlation data between the two qubit data sets is
           required for reconstruction.
 - `nbrQubits`: number of qubits
-- `nbrAxes`: number of measurements
+- `nbrAxes`: number of measurements.  Either 4 or 6
 - `nbrCalRepeats`: number of repeated calibration points per calibration state
 
 # Returns
-- `rhoLSQ`: a 2^nbrQubits x 2^nbrQubits complex density matrix reconstructed
+- `rhoLSQ` : a 2^nbrQubits x 2^nbrQubits complex density matrix reconstructed
             with least-squares
-- `rhoML`: a 2^nbrQubits x 2^nbrQubits complex density matrix reconstructed
-            with maximun-likelyhood
+- `rhoML` : (optional) a 2 x 2 complex density matrix reconstructed
+            with least-squares.  Note this is only supported with single qubit
+            data and six axes measurements.
 
 # Examples
 julia> datapath = "/path/to/data/folder"
 julia> data, desc = load_data(datapath,24,"200315",load_var=true);
-julia> rhoLSQ,rhoML  = Qlab.analyzeStateTomo(data[1],2,4);
+julia> rhoLSQ  = Qlab.analyzeStateTomo(data[1],2,4);
 julia> Qlab.pauli_set_plot(rhoLSQ)
 """
 function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
@@ -264,16 +289,24 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
     for data_q in values(data)
         # Average over calibration repeats
         data_ql = data_q["data"]
-        calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
-        avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
-        # Pull out the calibrations as diagonal measurement operators
-        push!(measOps, diagm(0 => avgCalData[:]))
+        if nbrCalRepeats == 0
+            # In this case, assume data is already calibrated and insert
+            # standard projectors
+            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits))
+            append!(tomoData, real(data_ql[1:end]))
+            append!(varData, real(data_q["variance"])[1:end])
+        else
+            calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
+            avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
+            # Pull out the calibrations as diagonal measurement operators
+            push!(measOps, diagm(0 => avgCalData[:]))
 
-        #The data to invert
-        append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]) )
+            #The data to invert
+            append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]))
 
-        #variance
-        append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
+            #variance
+            append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)])
+        end
     end
     # Map each experiment to the appropriate readout pulse
     # These are integers 1:length(data), each repeated numAxes^nbrQubits times
@@ -292,22 +325,39 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
                      measPulseUs,
                      measOps)
 
-    # Now constrained maximum-likelihood
-    rhoML = QST_ML(tomoData,
-                   varData,
-                   measPulseMap,
-                   measOpMap,
-                   measPulseUs,
-                   measOps)
-    # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
+    # Constrained maximum-likelihood is currently unsupported in general
+    #
+    # The reason for this has to do with the delicate nature of constructing
+    # the correlations data and make operators like POVMs physical etc... If
+    # this becomes a dire need, we can always revisit.  For most applications
+    # of interest, LSQ is perfectly good
 
-    return rhoLSQ, rhoML
+    # The one exception to this is single qubit data where measurements form a
+    # proper POVM.  In experimental language this is the case where we take six
+    # data points for the state reconstruction
+    if nbrAxes == 6 && nbrQubits == 1
+        rhoML = QST_ML(tomoData,
+                       measPulseMap,
+                       measOpMap,
+                       measPulseUs,
+                       measOps)
+
+        return rhoLSQ, rhoML
+    else
+        return rhoLSQ
+    end
+    # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 end
 
 """
     _create_ml_POVM(numQubits::Int)
 
-Create the textbook POVM for a given qubit system
+Create the textbook POVM for a given qubit system.
+
+# Returns
+- `mlPOVM::Array{ComplexF64}` : an array of numQubits^2 x numQubits^2
+                                dimentional set of projectors that form a POVM
+
 """
 function _create_ml_POVM(numQubits::Int)
     mlPOVM = Array{ComplexF64}[]
@@ -327,7 +377,7 @@ end
     _parese_exp_num(n::Int, n_qubits::Int)
 
 Determine the number of calibration points, calibration repeats, axes in a
-given tomography data set.
+given tomography data set.  Helper function for the StateTomo structure.
 
 # Arguments
 - `n` : total number of experimental data points including
@@ -351,7 +401,7 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
             # correct number will be a whole number
             continue
         end
-        if !isposdef(nbrRepeats_guess)
+        if nbrRepeats_guess < 0
             # filter out obviously wrong guesses
             continue
         end
@@ -387,9 +437,10 @@ end
 """
     _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
                            desc::Dict{String,Any})
+
 Preprocess the data
 
-determine the number of qubits, and return organized datasets based on the
+Determine the number of qubits, and return organized datasets based on the
 structure of the data.  Single dimensional data is assumed to be averaged
 and 2D data is assumed to be (experiment, shot) data
 """
@@ -426,6 +477,9 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
     else
         println("Correlation data found... no")
         corrData = false
+        if numQubits > 1
+            @error("This appears to be two-qubit data but no correlation data
+                    is provided!  Tomography will not work!")
     end
 
     #check that atleast one variance dataset exists
@@ -455,8 +509,7 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
             push!(shot_data_idx, i)
         end
     end
-#     tomoDataSets = filter((k,v) -> k in tomo_data_idx, data)
-#     shotDataSets = filter((k,v) -> k in shot_data_idx, data)
+
     tomoDataSets = filter(p -> p.first in tomo_data_idx, data)
     shotDataSets = filter(p -> p.first in shot_data_idx, data)
     return numQubits, numDatasets, corrData, varData, numDataPoints,
@@ -518,6 +571,29 @@ struct StateTomo
     end
 end
 
+"""
+    analyzeStateTomo(tomo::StateTomo)
+
+Function to setup and run quantum state tomography for a given number of qubits
+and measurement axes.
+
+# Arguments
+- `tomo::Qlab.StateTomo`: State tomography object constructed from the data
+
+# Returns
+- `rhoLSQ`: a 2^nbrQubits x 2^nbrQubits complex density matrix reconstructed
+            with least-squares
+- `rhoML` : (optional) a 2 x 2 complex density matrix reconstructed
+            with least-squares.  Note this is only supported with single qubit
+            data and six axes measurements.
+
+# Examples
+julia> datapath = "/path/to/data/folder"
+julia> data, desc = load_data(datapath,24,"200315",load_var=true);
+julia> tomo = Qlab.StateTomo(data, desc);
+julia> rhoLSQ  = Qlab.analyzeStateTomo(tomo);
+julia> Qlab.pauli_set_plot(rhoLSQ)
+"""
 function analyzeStateTomo(tomoObj::StateTomo)
 
     data = tomoObj.tomoDataSets
@@ -526,26 +602,35 @@ function analyzeStateTomo(tomoObj::StateTomo)
     nbrCalRepeats = tomoObj.numCalRepeats
     measOps = Matrix{Float64}[]
     tomoData = Float64[]
-    mlTomoData = Float64[]
     varData = Float64[]
-    mlVarData = Float64[]
     numMeas = length(data)
+
+    # mlTomoData = Float64[]
+    # mlVarData = Float64[]
 
     # For LSQ reconstruction - make the observables out of un-scaled
     # calibration points.  Note these do not form a POVM
     for data_q in values(data)
         # Average over calibration repeats
         data_ql = data_q["data"]
-        calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
-        avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
-        # Pull out the calibrations as diagonal measurement operators
-        push!(measOps, diagm(0 => avgCalData[:]))
+        if nbrCalRepeats == 0
+            # In this case, assume data is already calibrated and insert
+            # standard projectors
+            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits))
+            append!(tomoData, real(data_ql[1:end]))
+            append!(varData, real(data_q["variance"])[1:end])
+        else
+            calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
+            avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
+            # Pull out the calibrations as diagonal measurement operators
+            push!(measOps, diagm(0 => avgCalData[:]))
 
-        #The data to invert
-        append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]) )
+            #The data to invert
+            append!(tomoData, real(data_ql[1:end-nbrCalRepeats*(2^nbrQubits)]))
 
-        #variance
-        append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)] )
+            #variance
+            append!(varData, real(data_q["variance"])[1:end-nbrCalRepeats*(2^nbrQubits)])
+        end
     end
     # Map each experiment to the appropriate readout pulse
     # These are integers 1:length(data), each repeated numAxes^nbrQubits times
@@ -564,43 +649,43 @@ function analyzeStateTomo(tomoObj::StateTomo)
                      measPulseUs,
                      measOps)
 
-    # Now constrained maximum-likelihood
-    # the data needs to be scaled between -1 and 1
-    # the maixmum likelyhood POVM also needs to be used
+    # Constrained maximum-likelihood is currently unsupported
+    #
+    # The reason for this has to do with the delicate nature of constructing
+    # the correlations data and make operators like POVMs physical etc... If
+    # this becomes a dire need, we can always revisit.  For most applications
+    # of interest, LSQ is perfectly good
+    #
+    # Constrained maximum-likelihood is currently unsupported in general
+    #
+    # The reason for this has to do with the delicate nature of constructing
+    # the correlations data and make operators like POVMs physical etc... If
+    # this becomes a dire need, we can always revisit.  For most applications
+    # of interest, LSQ is perfectly good
 
-    for (i, data_q) in enumerate(values(data))
-        # Average over calibration repeats
+    # The one exception to this is single qubit data where measurements form a
+    # proper POVM.  In experimental language this is the case where we take six
+    # data points for the state reconstruction
+    if nbrAxes == 6 && nbrQubits == 1
+        rhoML = QST_ML(tomoData,
+                       measPulseMap,
+                       measOpMap,
+                       measPulseUs,
+                       measOps)
 
-        # check for multi qubit data
-        # we'll have to assume a qubit ordering for now
-        if i == 1 && nbrQubits > 2
-            orderBit = 2
-        else
-            orderBit = 1
-        end
-        data_ql = Qlab.cal_data(data_q["data"], bit=orderBit,
-                                                    nqubits=nbrQubits,
-                                                    num_repeats=nbrCalRepeats)
-        #println(length(data_ql))
-        #The data to invert
-        append!(mlTomoData, real(data_ql) )
-
+        return rhoLSQ, rhoML
+    else
+        return rhoLSQ
     end
-
-    rhoML = QST_ML(mlTomoData,
-                   varData,
-                   measPulseMap,
-                   measOpMap,
-                   measPulseUs,
-                   tomoObj.mlPOVM)
-
-    return rhoLSQ, rhoML
 end
 
 """
     rho2pauli(ρ)
 
-Convert a density matrix, ρ, to a Pauli set vector.
+Convert a density matrix, ρ, to a Pauli set vector of Pauli expectation values.
+
+# Arguments
+- `ρ`: State tomography object constructed from the data
 
 # Examples
 ```julia-repl
