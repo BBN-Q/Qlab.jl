@@ -230,6 +230,7 @@ function QST_ML(expResults,
     # ML obs must be POVMs -> Hermitian, possitive-semidefinite, and trace 1
     if length(obs) < 6
         @warn("State observations do not form a POVM!")
+    end
 
     tomo = MLStateTomo(obs)
 
@@ -292,7 +293,7 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
         if nbrCalRepeats == 0
             # In this case, assume data is already calibrated and insert
             # standard projectors
-            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits))
+            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits)))
             append!(tomoData, real(data_ql[1:end]))
             append!(varData, real(data_q["variance"])[1:end])
         else
@@ -480,6 +481,7 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
         if numQubits > 1
             @error("This appears to be two-qubit data but no correlation data
                     is provided!  Tomography will not work!")
+        end
     end
 
     #check that atleast one variance dataset exists
@@ -616,7 +618,7 @@ function analyzeStateTomo(tomoObj::StateTomo)
         if nbrCalRepeats == 0
             # In this case, assume data is already calibrated and insert
             # standard projectors
-            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits))
+            append!(measOps, real(Qlab._create_ml_POVM(nbrQubits)))
             append!(tomoData, real(data_ql[1:end]))
             append!(varData, real(data_q["variance"])[1:end])
         else
