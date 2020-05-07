@@ -4,11 +4,9 @@ using QuantumTomography, Cliffords, LinearAlgebra, StatsBase
     squeeze(A::AbstractArray)
 
 Drops singleton dimentions from array structures.
-
 Helper function to be used with caution!
 
 https://stackoverflow.com/questions/52505760/dropping-singleton-dimensions-in-julia
-
 """
 function squeeze(A::AbstractArray)
     singleton_dims = tuple((d for d in 1:ndims(A) if size(A, d) == 1)...)
@@ -106,11 +104,11 @@ tomography data.
 
 # Arguments
 - `expResults::Array{Number}`: data array
-- `varmat::Array{Number}`: covariance matrix for data
-- `measPulseMap::`: array mapping each experiment to a measurement readout
-     pulse
-- `measOpMap::`: array mapping each experiment to a measurement channel
-- `measPulseUs::`: array of unitaries of measurement pulses
+- `varmat::Array{Number}`: covariance array for the expResults
+- `measPulseMap::`: array mapping each experiment outcome to the corresponding
+                    measPulseUs
+- `measOpMap::`: array mapping each experiment outcome to a measurement operator
+- `measPulseUs::`: array of unitaries applied before measurement pulses
 - `measOps::`: array of measurement operators for each channel
 
 # Examples
@@ -207,16 +205,17 @@ Function to perform maximum-likelihood quantum state tomography.  This function
 is usually wrapped by the analyzeStateTomo function.
 
 # Arguments
-- `expResults::Array{Number}`: data array.  This is the list of expectation
+- `expResults::Array{Number}`: data array.  This is a list of expectation
                                values for each of the measurements obserables.
-- `measPulseMap::`: array mapping each experiment to a measurement readout
-                    pulse
+- `measPulseMap::`: array mapping each experiment to a measurement
+                    readout pulse
 - `measOpMap::`: array mapping each experiment to a measurement channel
 - `measPulseUs::`: array of unitaries of measurement pulses.  These are
                    pulses applied before measurement in the experimental data,
                    mapping the measurement to the correct axis
 - `measOps::`: array of measurement operators for each channel.  In the case of
-               ML tomography, these need to be text book projectors to diagonal states.
+               ML tomography, these need to be text book projectors to
+               diagonal states.
 
 # Returns
 - `ρest::Array{Complex{Float64},d}`: d dimensional estimate of the density
@@ -276,7 +275,8 @@ and measurement axes.
           tomography, the correlation data between the two qubit data sets is
           required for reconstruction.
 - `nbrQubits`: number of qubits
-- `nbrAxes`: number of measurements.  Either 4 or 6
+- `nbrAxes`: number of measurements.  Either 4 or 6.  12 is possible but left
+             for the user to do manually.
 - `nbrCalRepeats`: number of repeated calibration points per calibration state
 
 # Returns
@@ -393,7 +393,9 @@ end
     _parese_exp_num(n::Int, n_qubits::Int)
 
 Determine the number of calibration points, calibration repeats, axes in a
-given tomography data set.  Helper function for the StateTomo structure.
+given tomography data set.  Helper function for the StateTomo structure.  This
+function makes many assumptions about the structure of the data and is built
+using heuristics.  YOur milage may vary
 
 # Arguments
 - `n` : total number of experimental data points including
@@ -404,13 +406,18 @@ given tomography data set.  Helper function for the StateTomo structure.
 - `numCalRepeats::Int` : number of repeats for each calibration point
 - `numCals::Int` : the total number of calibration points in an experiment
 - `numAxes::Int` : the number of of axes were observations were made.
-                    This must be 4 or 6.
+                   This must be 4 or 6.
 """
 function _parese_exp_num(numDataPoints::Int, numQubits::Int)
+
+    # Assume zero cals as a base case for calibration or manual data scaling
     numCalRepeats = 0
     numCals = 0
     nbr_basis_states = (numQubits == 1) ? 2 : 4
-    # determine the cal repeats number
+
+    # Determine the cal repeats number
+    # Given the number of qubits and the limited possible number of observables
+    # search for a possible number of calibration repeats that matches the data
     for i in [4,6].^numQubits
         numCals_guess = numDataPoints - i
         nbrRepeats_guess = numCals_guess/nbr_basis_states
@@ -423,14 +430,16 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
             continue
         end
         if nbrRepeats_guess < 0
-            # filter out obviously wrong guesses
+            # filter negitive guesses
             continue
         end
         if !iseven(Int(nbrRepeats_guess))
+            # This is a very safe assumption
             @warn("Assuming numCalRepeats is even!")
             continue
         end
         if !ispow2(Int(nbrRepeats_guess))
+            # This is likely the case but warn the user
             @warn("Assuming nbr repeats is a power of 2!")
             continue
         end
@@ -448,10 +457,12 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
     elseif numQubits ==1
         numAxes = numDataPoints-numCals
     end
+
     # assert numAxes must equal [4,6]
     if !(numAxes in [4,6])
         error("Obervables must be 4 or 6.  Please check your data!")
     end
+
     return numCals, numCalRepeats, numAxes
 end
 
@@ -463,7 +474,9 @@ Preprocess the data
 
 Determine the number of qubits, and return organized datasets based on the
 structure of the data.  Single dimensional data is assumed to be averaged
-and 2D data is assumed to be (experiment, shot) data
+and 2D data is assumed to be (experiment, shot) data.  This is designed to be
+a private function of the StateTomo structure.  Note, any shot data found is
+left to the user to process manually.
 """
 function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
                            desc::Dict{String,Any})
@@ -478,10 +491,11 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
     qubits = []
     labels = []
     for i in qubit_data_keys
-        foo = match(r"([qQ]\d?\d?\d?)[ -_](\w*)", i)
-        push!(qubits, string(foo[1]))
-        push!(labels, string(foo[2]))
+        ql = match(r"([qQ]\d?\d?\d?)[ -_](\w*)", i)
+        push!(qubits, string(ql[1]))
+        push!(labels, string(ql[2]))
     end
+    # filter out any repeated entries
     unique!(qubits)
     unique!(labels)
     println("Found $(length(qubits)) sets of qubit data: " * string([string(i) * " " for i in qubits]...))
@@ -489,7 +503,7 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
     numQubits = length(qubits)
     numDatasets = length(labels)
 
-    #pull out any correlation
+    #pull out any correlation data
     correlation_data_sets = []
     qubit_correlation_keys = filter(x -> occursin(r"([Cc]orrelated?)", x), keys(data))
     if length(qubit_correlation_keys) != 0
@@ -500,11 +514,14 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
         corrData = false
         if numQubits > 1
             @error("This appears to be two-qubit data but no correlation data
-                    is provided!  Tomography will not work!")
+                    is provided!  Tomography will not work!  If you have
+                    correlation data, please add it manually to the data
+                    dictionary.")
         end
     end
 
-    #check that atleast one variance dataset exists
+    # check that at least one variance dataset exists
+    # Least-squares reconstruction will not be possible without variance data
     variance_data = []
     for i in keys(data)
         if length(filter(x -> occursin(r"([Vv]ariance)", x), keys(data[i]))) != 0
@@ -517,7 +534,8 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
         end
     end
 
-    # get the data size and classify them
+    # get the data size and classify assuming multi-dimensional data is raw,
+    # integrated shot data
     tomo_data_idx = empty([], String)
     shot_data_idx = empty([], String)
     for i in keys(data)
@@ -534,6 +552,7 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
 
     tomoDataSets = filter(p -> p.first in tomo_data_idx, data)
     shotDataSets = filter(p -> p.first in shot_data_idx, data)
+
     return numQubits, numDatasets, corrData, varData, numDataPoints,
                                                       tomoDataSets,
                                                       shotDataSets
@@ -543,9 +562,9 @@ State tomography object
 
 This holds all the infromation necessary to do state and process tomography.
 
-The object is constructed by passing it a tomography data file or a dataset
-and its descriptor loaded from load_data.  Once created, this object can be
-passed directly to the any of the tomographyic reconstruction methods.
+The object is constructed by passing it a tomography dataset and its descriptor
+loaded from load_data.  Once created, this object can be passed directly to the
+any of the tomographyic reconstruction methods.
 """
 struct StateTomo
     numQubits::Int
@@ -671,20 +690,13 @@ function analyzeStateTomo(tomoObj::StateTomo)
                      measPulseUs,
                      measOps)
 
-    # Constrained maximum-likelihood is currently unsupported
-    #
-    # The reason for this has to do with the delicate nature of constructing
-    # the correlations data and make operators like POVMs physical etc... If
-    # this becomes a dire need, we can always revisit.  For most applications
-    # of interest, LSQ is perfectly good
-    #
     # Constrained maximum-likelihood is currently unsupported in general
     #
     # The reason for this has to do with the delicate nature of constructing
-    # the correlations data and make operators like POVMs physical etc... If
+    # the correlation data and making operators, like POVMs, physical etc... If
     # this becomes a dire need, we can always revisit.  For most applications
-    # of interest, LSQ is perfectly good
-
+    # of interest, LSQ is perfectly good.
+    #
     # The one exception to this is single qubit data where measurements form a
     # proper POVM.  In experimental language this is the case where we take six
     # data points for the state reconstruction
@@ -708,6 +720,10 @@ Convert a density matrix, ρ, to a Pauli set vector of Pauli expectation values.
 
 # Arguments
 - `ρ`: State tomography object constructed from the data
+
+# Returns
+- `paulivec:Array{Float64}`: array of Pauli expectation vaules
+- `paulis:Array{Pauli}`: array of Pauli operators as defined in Cliffords.jl
 
 # Examples
 ```julia-repl
