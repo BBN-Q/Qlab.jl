@@ -14,6 +14,7 @@ matrix:
 notifications:
   email: false
 before_install:
+  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/BBN-Q/QuantumTomography.jl.git")); Pkg.develop("QuantumTomography")'
   - julia -e 'using Pkg; Pkg.add("LinearAlgebra")'
   - julia -e 'using Pkg; Pkg.add("Statistics")'
   - julia -e 'using Pkg; Pkg.add("Conda")'

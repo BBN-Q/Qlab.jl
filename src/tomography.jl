@@ -1,6 +1,21 @@
 using QuantumTomography, Cliffords, LinearAlgebra, StatsBase
 
 """
+    squeeze(A::AbstractArray)
+
+Drops singleton dimentions from array structures.
+
+Helper function to be used with caution!
+
+https://stackoverflow.com/questions/52505760/dropping-singleton-dimensions-in-julia
+
+"""
+function squeeze(A::AbstractArray)
+    singleton_dims = tuple((d for d in 1:ndims(A) if size(A, d) == 1)...)
+    return dropdims(A, dims=singleton_dims)
+end
+
+"""
     tomo_gate_set(nbrQubits, nbrAxes; pulse_type::String="Clifford", prep_meas::Integer=1)
 
 Return a set of state preparation or readout unitary gates for a give
@@ -345,7 +360,7 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
 
         return rhoLSQ, rhoML
     else
-        return rhoLSQ
+        return rhoLSQ, []
     end
     # plotting to be implemented    pauliSetPlot(rho2pauli(rhoLSQ), newplot)
 end
@@ -393,11 +408,16 @@ given tomography data set.  Helper function for the StateTomo structure.
 """
 function _parese_exp_num(numDataPoints::Int, numQubits::Int)
     numCalRepeats = 0
+    numCals = 0
     nbr_basis_states = (numQubits == 1) ? 2 : 4
     # determine the cal repeats number
     for i in [4,6].^numQubits
         numCals_guess = numDataPoints - i
         nbrRepeats_guess = numCals_guess/nbr_basis_states
+        if numDataPoints <= 6
+            # catch the case where there are no cals
+            nbrRepeats_guess = 0
+        end
         if nbrRepeats_guess % 1 != 0
             # correct number will be a whole number
             continue
@@ -416,9 +436,9 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
         end
         numCalRepeats = nbrRepeats_guess
     end
-    if numQubits == 1
+    if numQubits == 1 && numCalRepeats != 0
         numCals = numCalRepeats * 2
-    elseif numQubits == 2
+    elseif numQubits == 2 && numCalRepeats != 0
         numCals = numCalRepeats * 4
     end
 
@@ -501,12 +521,12 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
     tomo_data_idx = empty([], String)
     shot_data_idx = empty([], String)
     for i in keys(data)
-        data_size = size(data[i]["data"])
-        if data_size[1] == 1
+        dims = size(squeeze(data[i]["data"]))
+        if length(dims) == 1
             println("Main data set: " * string(i))
             push!(tomo_data_idx, i)
-            numDataPoints = data_size[2]
-        elseif data_size[1] > 1
+            numDataPoints = dims[1]
+        elseif length(dims) > 1
             println("Shots data set: " * string(i))
             push!(shot_data_idx, i)
         end
@@ -620,7 +640,7 @@ function analyzeStateTomo(tomoObj::StateTomo)
             # standard projectors
             append!(measOps, real(Qlab._create_ml_POVM(nbrQubits)))
             append!(tomoData, real(data_ql[1:end]))
-            append!(varData, real(data_q["variance"])[1:end])
+            append!(varData, real(data_q["variance"][1:end]))
         else
             calData = real(data_ql[end-nbrCalRepeats*(2^nbrQubits )+1:end])
             avgCalData = mean(reshape(calData, nbrCalRepeats, 2^nbrQubits), dims=1)
@@ -677,7 +697,7 @@ function analyzeStateTomo(tomoObj::StateTomo)
 
         return rhoLSQ, rhoML
     else
-        return rhoLSQ
+        return rhoLSQ, []
     end
 end
 
