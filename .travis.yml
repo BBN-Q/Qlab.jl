@@ -14,7 +14,8 @@ matrix:
 notifications:
   email: false
 before_install:
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/BBN-Q/QuantumTomography.jl.git")); Pkg.develop("QuantumTomography")'
+  #- julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/BBN-Q/QuantumTomography.jl.git")); Pkg.develop("QuantumTomography")'
+  - julia -e 'using Pkg; Pkg.add("QuantumTomography")'
   - julia -e 'using Pkg; Pkg.add("LinearAlgebra")'
   - julia -e 'using Pkg; Pkg.add("Statistics")'
   - julia -e 'using Pkg; Pkg.add("Conda")'
@@ -26,4 +27,3 @@ script:
     - julia -e 'using Pkg; Pkg.add("PyCall")'
     - julia -e 'using Pkg; ENV["PYTHON"]=""; Pkg.build("PyCall")'
     - julia --check-bounds=yes --color=yes -e 'using Pkg; Pkg.build("Qlab"); Pkg.test("Qlab"; coverage=true)'
-
