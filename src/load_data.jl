@@ -43,7 +43,7 @@ function load_data(filename::AbstractString; load_var = false)
                     datasets[group]["variance"] = data
                 end
             else
-                print("Variance not available")
+              @warn("Variance not available for dataset: $(group)")
             end
         end
         descriptors[group] = metadata
