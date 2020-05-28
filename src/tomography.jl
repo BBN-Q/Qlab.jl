@@ -128,7 +128,9 @@ function QST_FLSQ(expResults,
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
-        push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
+        obs_ct = U' * op * U
+        obs_ct = (obs_ct + obs_ct')/2 # force to be Hermitian
+        push!(obs, obs_ct)
     end
     #return measOps
     # in order to constrain the trace to unity, add an identity observerable
@@ -187,7 +189,9 @@ function QST_LSQ(expResults,
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
-        push!(obs, Hermitian(U' * op * U)) # force to be Hermitian
+        obs_ct = U' * op * U
+        obs_ct = (obs_ct + obs_ct')/2 # force to be Hermitian
+        push!(obs, obs_ct)
     end
     tomo = LSStateTomo(obs)
 
