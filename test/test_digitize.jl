@@ -1,11 +1,11 @@
-using Base.Test
+using Test, SpecialFunctions, Statistics
 
 function test_digitize(sep; C=1000, K=1000)
     cal0 = randn(C)
-    cal1 = randn(C)+sep
+    cal1 = randn(C) .+ sep
 
     # flip 1000 coins, and add noise
-    rbits  = round(Int, rand(K) .> 0.5)
+    rbits  = round.(Int, rand(K))
     rvolts = sep*rbits + randn(K)
 
     # estimate of prob of being correct
@@ -16,7 +16,7 @@ function test_digitize(sep; C=1000, K=1000)
 
     return pe,
            sum(abs.(dm-rbits))/length(rbits),
-           sum(abs.(de-rbits))/length(rbits), 
+           sum(abs.(de-rbits))/length(rbits),
            pe0m,
            pe1m,
            pe0e,
@@ -33,8 +33,8 @@ end
 #   - estimated error rate based on cals for :max mode (1 preps)
 #   - estimated error rate based on cals for :equal mode (0 preps)
 #   - estimated error rate based on cals for :equal mode (1 preps)
-test1 = mean(reduce(hcat,[[test_digitize(0.75)...] for _ in 1:1000]),2)
-test2 = mean(reduce(hcat,[[test_digitize(0.50)...] for _ in 1:1000]),2)
+test1 = mean(reduce(hcat,[[test_digitize(0.75)...] for _ in 1:1000]))
+test2 = mean(reduce(hcat,[[test_digitize(0.50)...] for _ in 1:1000]))
 # make sure these are all close to the prediction
 @test all(map(x->isapprox(x,0.35,atol=5e-2),test1))
 @test all(map(x->isapprox(x,0.40,atol=5e-2),test2))

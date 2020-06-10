@@ -39,16 +39,19 @@ Helper function to return a fit to a model.
 """
 function generic_fit(xpts, ypts, model, initial_guess, fit_params, model_string::String; yvars=[])
     @assert length(xpts) == length(ypts) "X and Y data length must match."
-    if isempty(yvars)
-      result = curve_fit(model, xpts, ypts, initial_guess)
-      errors = estimate_errors(result)
-      sq_error = sum(((model(xpts, result.param) - ypts).^2))
-    else
-      @assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
-      result = curve_fit(model, xpts, ypts, 1./sqrt(yvars), initial_guess)
-      errors = estimate_errors(result)
-      sq_error = sum(((model(xpts, result.param) - ypts).^2)./yvars)
-    end
+    #try
+        if isempty(yvars)
+          result = curve_fit(model, xpts, ypts, initial_guess)
+          errors = margin_error(result)
+          sq_error = sum(((model(xpts, result.param) - ypts) .^ 2))
+        else
+          @assert length(ypts) == length(yvars) "Y data and Y variance lengths must match."
+          result = curve_fit(model, xpts, ypts, 1 ./ sqrt(yvars), initial_guess)
+          errors = margin_error(result)
+          sq_error = sum(((model(xpts, result.param) - ypts) .^ 2) ./ yvars)
+        end
+    #catch
+    #    result =
     # Compute badness of fit:
     # Under the null hypothesis (that the model is valid and that the observations
     # do indeed have Gaussian statistics), the mean squared error is χ² distributed
@@ -70,18 +73,29 @@ Fit to exponential T decay y = a exp(-t/T) + b.
 """
 function fit_t1(xpts, ypts, yvars=[])
     T1_fit_dict(p) = Dict("a" => p[1], "T" => p[2], "b" => p[3])
-    model(t, p) = p[1]*exp.(-t ./ p[2]) + p[3]
+    model(t, p) = p[1]*exp.(-t ./ p[2]) .+ p[3]
     p_guess = [ypts[1]-ypts[end], xpts[end]/3., ypts[end]]
     return generic_fit(xpts, ypts, model, p_guess, T1_fit_dict,
               "a * exp(-t/T) + b", yvars=yvars)
+end
+
+""" `fit_double_exp(xpts, ypts, yvars=[])`
+Fit to double exponential decay y = a exp(-t/Ta) + b exp(-t/Tb) + c.
+"""
+function fit_double_exp(xpts, ypts, yvars=[])
+    T1_fit_dict(p) = Dict("a" => p[1], "Ta" => p[2], "b" => p[3], "Tb" => p[4], "c" => p[5])
+    model(t, p) = p[1]*exp.(-t ./ p[2]) .+ p[3]*exp.(-t ./ p[4]) .+ p[5]
+    p_guess = [0.5*(ypts[1]-ypts[end]), xpts[end]/3., 0.5*(ypts[1]-ypts[end]), xpts[end]/3., ypts[end]]
+    return generic_fit(xpts, ypts, model, p_guess, T1_fit_dict,
+              "a * exp(-t/Ta) + b * exp(-t/Tb) + c", yvars=yvars)
 end
 
 """ `fit_line(xpts, ypts, yvars=[])`
 Fit to linear model y = ax + b.
 """
 function fit_line(xpts, ypts, yvars=[])
-    model(t, p) = p[1]*t + p[2]
-    p_guess = [-ypts[indmin(abs.(xpts))]/xpts[indmin(abs.(ypts))], ypts[indmin(abs.(xpts))]]
+    model(t, p) = p[1]*t .+ p[2]
+    p_guess = [-ypts[findmin(abs.(xpts))[2]] / xpts[findmin(abs.(ypts))[2]], ypts[findmin(abs.(xpts))[2]]]
     return generic_fit(xpts, ypts, model, p_guess,
     x->Dict("a" => x[1], "b"=>x[2]), "ax + b", yvars=yvars)
 end
@@ -93,9 +107,9 @@ with optional weights for each point.
 function fit_ramsey(xpts, ypts, yvars=[])
 
     fit_dict1(p) = Dict("a"=>p[1], "T"=>p[2], "f"=>p[3], "ϕ"=>p[4], "b"=>p[5])
-    model(t, p) = p[1]*exp.(-t ./ p[2]).*cos.(2π*p[3] .* t + p[4]) + p[5]
+    model(t, p) = p[1]*exp.(-t ./ p[2]).*cos.(2π*p[3] .* t .+ p[4]) .+ p[5]
     # Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 1)
+    freqs,Ts,amps = KT_estimation(ypts .- mean(ypts), xpts[2]-xpts[1], 1)
     p_guess = [abs(amps[1]), Ts[1], freqs[1], angle(amps[1]), mean(ypts)];
 
     return generic_fit(xpts, ypts, model, p_guess,
@@ -115,17 +129,17 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     fit_dict2(p) = Dict("a₁"=>p[1], "T₁"=>p[2], "f₁"=>p[3], "ϕ₁"=>p[4],
     "a₂"=>p[5], "T₂"=>p[6], "f₂"=>p[7], "ϕ₂"=>p[8],
     "b"=>p[9])
-    model2(t, p) = ( p[1] * exp.(-t ./ p[2]) .* cos.(2π * p[3] .*t + p[4]) +
-    p[5] * exp.(-t ./ p[6]) .* cos.(2π * p[7] .*t + p[8]) + p[9] )
+    model2(t, p) = ( p[1] * exp.(-t ./ p[2]) .* cos.(2π * p[3] .*t .+ p[4]) .+
+    p[5] * exp.(-t ./ p[6]) .* cos.(2π * p[7] .*t .+ p[8]) .+ p[9] )
 
     #Use KT estimation to get a guess for the fit
-    freqs,Ts,amps = KT_estimation(ypts-mean(ypts), xpts[2]-xpts[1], 2)
-    phases = angle(amps)
+    freqs,Ts,amps = KT_estimation(ypts.-mean(ypts), xpts[2].-xpts[1], 2)
+    phases = angle.(amps)
     amps = abs.(amps)
-    p_guess = [amps[1], Ts[1], freqs[1], phases[1], amps[2], Ts[2], freqs[2], phases[2], mean(ypts)]
+    p_guess = [1, Ts[1], freqs[1], phases[1], 1, Ts[2], freqs[2], phases[2], mean(ypts)]
 
     fitresult2 = generic_fit(xpts, ypts, model2, p_guess, fit_dict2,
-    "a₁*exp(-t ./ T₁).*cos(2πf₁ .* t + ϕ₁) + a₂*exp(-t ./ T₂).*cos(2πf₂ .* t + ϕ₂) + b",
+    "a₁*exp(-t ./ T₁).*cos(2πf₁ .* t .+ ϕ₁) .+ a₂*exp(-t ./ T₂).*cos(2πf₂ .* t .+ ϕ₂) .+ b",
     yvars=yvars)
 
     fitresult1 = fit_ramsey(xpts, ypts, yvars)
@@ -136,21 +150,20 @@ function fit_twofreq_ramsey(xpts, ypts, yvars=[])
     corr(k,n) = (k+1)*(k+1)/(n-k-2)
     aicc(e,k,n) = 2 * k + e + corr(k,n)
 
-    aic = aicc(fitresult1.sq_error,k2,length(xpts)) - aicc(fitresult1.sq_error,k1,length(xpts))
+    aic = aicc(fitresult2.sq_error,k2,length(xpts)) - aicc(fitresult1.sq_error,k1,length(xpts))
 
-    return [ fitresult1, fitresult2,
-            (aic > 0) ? 1 : 2,
-            aic ]
+    println(aic)
+    return fitresult2 #(aic > 0) ? fitresult2 : fitresult1
 end
 
 """`fit_sin(xpts, ypts, yvars)`
 Fit to a sine a*sin(2πf t) + b
 """
 function fit_sin(xpts, ypts, yvars=[])
-    model(t, p) = p[1]*sin.(2π*p[2] .* t) + p[3]
+    model(t, p) = p[1]*sin.(2π*p[2] .* t) .+ p[3]
     # Use KT estimation to get a guess for the fit
     freqs,Ts,amps = KT_estimation(ypts, xpts[2]-xpts[1], 2)
-    idx = indmax(abs.(amps))
+    idx = argmax(abs.(amps))
     p_guess = [abs(amps[idx]), Ts[idx], freqs[idx], mean(ypts)];
     return generic_fit(xpts, ypts, model, p_guess,
               x->Dict("a"=>x[1], "f"=>x[2], "b"=>x[3]),
@@ -179,8 +192,8 @@ function fit_photon_ramsey(xpts, ypts, params)
     end
     p_guess = [0., 1.]
     result = curve_fit(model, xpts, ypts, p_guess)
-    errors = estimate_errors(result)
-    xfine = linspace(xpts[1],xpts[end],1001)
+    errors = margin_error(result)
+    xfine = range(xpts[1], stop=xpts[end],length=1001)
     fit_curve = (xfine, model(xfine, result.param))
     return (result.param[2], errors[2], fit_curve)
 end
@@ -202,17 +215,48 @@ function analyzeRB(ypts, seqlengths; purity=false)
         data = vec(sum(reshape(ypts, (length(ypts) ÷ 3),3).^2,  2))
     else
         # otherwise convert <Z> to prob of 0
-        data = .5 * (1 - vec(ypts))
+        data = .5 * (1 + vec(ypts))
     end
     model(n, p) = p[1] * (1-p[2]).^n + p[3]
     fit = curve_fit(model, xpts-purity, data, [0.5, .01, 0.5]) #fit to ...^(n-1) for purity
-    xfine = linspace(seqlengths[1],seqlengths[end],1001)
+    xfine = range(seqlengths[1],stop=seqlengths[end],length=1001)
     fit_curve = (xfine, model(xfine, fit.param))
-    errors = estimate_errors(fit)
+    errors = margin_error(fit)
     if purity
-        @printf("ϵ_inc = %0.3f%%\n", 0.5*(1-sqrt(1-fit.param[2]))*100)
+        println("ϵ_inc = $(0.5*(1-sqrt(1-fit.param[2]))*100)")
     else
-        @printf("ϵ = %0.3f%%\n", fit.param[2]/2*100)
+        println("ϵ = $(fit.param[2]/2*100)")
     end
     return (xpts, data, fit.param, fit_curve, errors)
+end
+
+"""`fit_RB(xpts, ypts, yvars=[])`
+Fit to RB decay a*(1-b)^x + c
+"""
+function fit_RB(xpts, ypts, yvars=[])
+    RB_fit_dict(p) = Dict("a" => p[1], "b" => p[2], "c" => p[3])
+    model(n, p) = p[1] * (1-p[2]).^n + p[3]
+    p_guess = [0.5, .01, 0.5]
+    return generic_fit(xpts, ypts, model, p_guess, RB_fit_dict, "a * exp(-n/b) + c", yvars=yvars)
+end
+
+function calculate_residueCR(params, t, rvec)
+    rx        = params[1]; # Rabi frequency along x
+    ry        = params[2]; # Rabi frequency along y
+    delta     = params[3]; # detuning
+    x0        = params[4]; # initial x
+    y0        = params[5]; # initial y
+    z0        = params[6]; # initial z
+    omega = sqrt(rx^2+ry^2+delta^2);
+    x = (rx*delta*(-z0+x0*rx+y0*ry)+(rx*(z0*delta-y0*ry)+x0*(delta^2+ry^2)).*cos.(t*omega)+omega*(y0*delta+z0*ry).*sin.(t*omega))/omega^2;
+    y = (ry*delta*(-z0+x0*rx+y0*ry)+(ry*(z0*delta-x0*rx)+y0*(delta^2+rx^2)).*cos.(t*omega)-omega*(x0*delta+z0*rx).*sin.(t*omega))/omega^2;
+    z = (delta*(z0*delta-x0*rx-y0*ry)+(x0*delta*rx+y0*delta*ry+z0*(rx^2+ry^2)).*cos.(t*omega)+omega*(y0*rx-x0*ry).*sin.(omega*t))/omega^2;
+    rmodel = [x,y,z];
+    diffvec = rvec-rmodel;
+    return sum(hcat(diffvec...).^2), rmodel
+end
+
+function fit_CR_hamiltonian(xpoints, datavec, params_estimate = [5,5,0,0,0,1])
+    result = optimize(x-> calculate_residueCR(x, xpoints, datavec)[1], params_estimate)
+    return Optim.minimizer(result)
 end

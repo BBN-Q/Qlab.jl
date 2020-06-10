@@ -22,7 +22,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
   numShots = Int64(length(data)/(numMeas*numSegments))
   data=real(data)'
   datamat = splitdata(data,numShots,numMeas*numSegments)
-  bins = linspace(minimum(minimum(datamat)), maximum(maximum(datamat)),500)
+  bins = range(minimum(minimum(datamat)), stop=maximum(maximum(datamat)),length=500)
 
   PDFvec = zeros(length(bins),numMeas*numSegments)
   PDFvec_con = zeros(length(bins),numMeas*numSegments)
@@ -46,7 +46,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
 
   for kk=1:length(ind0)
     fidvec_un[kk] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[kk]]-PDFvec[:,ind1[kk]])))
-    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
+    indmaximum = argmax(abs.(cumsum(PDFvec[:,ind0[kk]])-cumsum(PDFvec[:,ind1[kk]])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[kk], ind1[kk], fidvec_un[kk])
     tempvec0 = cumsum(abs.(PDFvec[:,ind0[kk]]))
     err0[kk] = tempvec0[indmaximum]
@@ -82,7 +82,7 @@ function initByMsmt(data,numSegments,numMeas,indMeas,selectMeas,selectSign,thres
       PDFvec_con[:,(jj-1)*numMeas+kk] = kde(tempvec, bins).density
 
       #hist(~isnan(datamat[:,numMeas*(jj-1)+kk]).*datamat[:,numMeas*(jj-1)+kk], bins)[2];
-      if(size(find(selectMeas.==kk),1)==0)
+      if(size(findall(selectMeas.==kk),1)==0)
         data_con[jj,thismeas] = nanmean(datamat[:,numMeas*(jj-1)+kk])
         thismeas=thismeas+1
       end
@@ -148,13 +148,13 @@ function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,sele
   end
 
   datamat_A = zeros(numShots_A, numMeas_A*(numSegments-numCal)+numCal, length(Anum))
-  bins = Array(LinSpace{Float64},length(Anum))
+  bins = Array(Base.LinRange{Float64},length(Anum))
   PDFvec = zeros(nbins,numMeas_A*(numSegments-numCal)+numCal, length(Anum))
 
   for Aind = 1:length(Anum)
 
     datamat_A[:, :, Aind] = splitdata(data_A[:, Aind],numShots_A,numMeas_A*(numSegments-numCal)+numCal)
-    bins[Aind] = linspace(minimum(minimum(datamat_A[:, :, Aind])), maximum(maximum(datamat_A[:, :, Aind])),nbins)
+    bins[Aind] = range(minimum(minimum(datamat_A[:, :, Aind])), stop=maximum(maximum(datamat_A[:, :, Aind])),length=nbins)
 
     #PDFvec_con = zeros(length(bins),numMeas*numSegments);
 
@@ -182,7 +182,7 @@ function initByMsmt_2D(data,Anum::Vector{Int},numSegments,numMeas_A,indMeas,sele
     @printf("Ancilla n.%d\n", Aind)
     #for kk=1:size(ind0,1)
     fidvec_un[Aind] = 1-0.5*(1-0.5*sum(abs.(PDFvec[:,ind0[Aind],Aind]-PDFvec[:,ind1[Aind],Aind])))
-    indmaximum = indmax(abs.(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
+    indmaximum = argmax(abs.(cumsum(PDFvec[:,ind0[Aind],Aind])-cumsum(PDFvec[:,ind1[Aind],Aind])))
     @printf("Optimum unconditioned fid. for segm. %d and %d = %.3f\n", ind0[Aind], ind1[Aind], fidvec_un[Aind])
     tempvec0 = cumsum(abs.(PDFvec[:,ind0[Aind],Aind]))
     err0[Aind] = tempvec0[indmaximum]
