@@ -836,22 +836,22 @@ function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measP
     obs = Matrix{}[]
     preps = Matrix{}[]
     for ct in 1:length(expResults)
-        Uprep = prepPulseUs[prep_ct]
-        Umeas = measPulseUs[measPulseMap[meas_ct]]
+        Uprep = prepPulseUs[mod1(ct, 16)]
+        Umeas = measPulseUs[measPulseMap[mod1(ct, 48)]]
         rhoIn = zeros(d,d)
         rhoIn[1,1] = 1
-        op = measOps[measOpMap[meas_ct]]
-        push!(preps, Uprep * rhoIn * Uprep')
-        push!(obs, Umeas' * op * Umeas)
-        # Roll the counters
-        meas_ct+=1
-        if meas_ct>length(Umeas)
-            meas_ct=1
-            prep_ct+=1
-        end
-        if prep_ct>length(Uprep)
-            prep_ct=1
-        end
+        op = measOps[measOpMap[mod1(ct, 48)]]
+
+        preps_ct = Uprep' * rhoIn * Uprep
+        preps_ct = (preps_ct + preps_ct')/2 # force to be Hermitian
+        push!(preps, preps_ct)
+        #println(LinearAlgebra.tr(preps_ct))
+
+        meas_ct = Umeas' * op * Umeas
+        meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
+        push!(obs, meas_ct)
+        # note the trace of these measurement operators will NOT be close to
+        # 1 given the way the data is scaled.
     end
     # # in order to constrain the trace to unity, add an identity observable
     # # and a corresponding value to expResults
