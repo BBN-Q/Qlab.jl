@@ -813,6 +813,8 @@ function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}
     # First least squares
     choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits)
 
+    # calculate the overlap with the ideal process
+
     return choiLSQ
 end
 
@@ -866,4 +868,39 @@ function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measP
         println("LSProcessTomo fit return status: $status")
     end
     return ρest
+end
+
+"""
+    getProcessFidelity(choi::AbstractArray, idealProcess::String)
+
+Return the process and gate fidelity of the given choi matrix with the
+given ideal process.  
+"""
+function getProcessFidelity(choi::AbstractArray, idealProcess::String)
+    nbrQubits = sqrt(size(choi, 1))
+    # Calculate the overlaps with the ideal gate
+    if ischar(idealProcess)
+        unitaryIdeal = str2unitary(idealProcess);
+    else
+        unitaryIdeal = idealProcess;
+    end
+    choiIdeal = unitary2choi(unitaryIdeal);
+
+    # Convert to chi representation to compute fidelity metrics
+    chiExp = choi2chi(choiSDP);
+    chiIdeal = choi2chi(choiIdeal);
+
+    processFidelity = real(LinearAlgebra.tr(choi2chi(choi)*chiIdeal));
+    gateFidelity = (2^nbrQubits*processFidelity+1)/(2^nbrQubits+1);
+
+    # TO-DO: implement plotting
+
+    # Create the pauli operator strings
+    # pauliStrs = allpaulis(nbrQubits);
+
+    # Create the pauli map for plotting
+    # pauliMapIdeal = choi2pauliMap(choiIdeal);
+    # pauliMapLSQ = choi2pauliMap(choiLSQ);
+    # pauliMapExp = choi2pauliMap(choiSDP);
+    return processFidelity, gateFidelity
 end
