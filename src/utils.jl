@@ -31,12 +31,14 @@ function choi2pauliMap(choi::AbstractArray)
     d2 = size(choi,1);
 
     #Create the Pauli opearators for n qubits
-    pauliOps = allpaulis(sqrt(d2));
+    pauliOps = map(x -> complex(x), vec(allpaulis(log2(sqrt(d2)))));
 
     pauliMap = zeros(d2,d2);
     for ct1 in 1:d2
+        p1 = pauliOps[ct1]
         for ct2 in 1:d2
-            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*pauliOps[ct1, ct2]));
+            p2 = pauliOps[ct2]
+            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*kron(p1',p2)));
         end
     end
     return pauliMap

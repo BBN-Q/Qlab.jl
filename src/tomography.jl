@@ -874,20 +874,21 @@ end
     getProcessFidelity(choi::AbstractArray, idealProcess::String)
 
 Return the process and gate fidelity of the given choi matrix with the
-given ideal process.  
+given ideal process.
 """
 function getProcessFidelity(choi::AbstractArray, idealProcess::String)
     nbrQubits = sqrt(size(choi, 1))
     # Calculate the overlaps with the ideal gate
-    if ischar(idealProcess)
+    if typeof(idealProcess) == String
         unitaryIdeal = str2unitary(idealProcess);
     else
+        # assume we are passed a matrix otherwise
         unitaryIdeal = idealProcess;
     end
     choiIdeal = unitary2choi(unitaryIdeal);
 
     # Convert to chi representation to compute fidelity metrics
-    chiExp = choi2chi(choiSDP);
+    chiExp = choi2chi(choi);
     chiIdeal = choi2chi(choiIdeal);
 
     processFidelity = real(LinearAlgebra.tr(choi2chi(choi)*chiIdeal));
