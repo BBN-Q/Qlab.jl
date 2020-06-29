@@ -38,7 +38,7 @@ function choi2pauliMap(choi::AbstractArray)
         p1 = pauliOps[ct1]
         for ct2 in 1:d2
             p2 = pauliOps[ct2]
-            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*kron(p1',p2)));
+            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*kron(transpose(p1),p2)));
         end
     end
     return pauliMap
@@ -79,7 +79,7 @@ function str2unitary(strIn::String)
                 "1QHad" => exp(-1im*(pi/2)*(1/sqrt(2))*(X+Z)),
                 "1QZ90" => exp(-1im*(pi/4)*Z),
                 "1QT" => exp(-1im*(pi/8)*Z),
-                "Id" => kron(I,I),
+                "II" => kron(I,I),
                 "XI" => exp(-1im*kron(X,I)*pi/2),
                 "IX" => exp(-1im*kron(I,X)*pi/2),
                 "YI" => exp(-1im*kron(Y,I)*pi/2),
