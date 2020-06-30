@@ -1,6 +1,10 @@
 using Cliffords
 import LinearAlgebra
 
+###############################################################################
+## Useful tools for manipulation of matrix representations in a tomography ####
+###############################################################################
+
 """
     unitary2choi(U::AbstractArray)
 
@@ -118,22 +122,60 @@ function choi2chi(choi::AbstractArray)
 
     # Get the Kraus operators from the eigen decomposition of the Choi
     vals, vecs = LinearAlgebra.eigen(choi);
-    vals = LinearAlgebra.diagm(vals);
+
+    # note the ordering diff between Matlab
+    vals = LinearAlgebra.diagm(reverse(vals));
+    vecs = reverse(vecs, dims=2);
 
     chi = zeros(ComplexF64,d2,d2);
 
-    pauliOps = allpaulis(log2(d));
+    pauliOps = map(x -> complex(x), allpaulis(log2(d)));
 
     # Transform from the Krauss basis to the Pauli basis
     for kraussct in 1:size(vals,1)
         tmpKrauss = reshape(vecs[:,kraussct],d,d)*sqrt(d); # Krauss operator should have norm of d
         for paulict1 in 1:d2
-            pauliLeft = LinearAlgebra.tr(complex(pauliOps[paulict1])*tmpKrauss)/d;
+            pauliLeft = LinearAlgebra.tr(pauliOps[paulict1]*tmpKrauss)/d;
             for paulict2 in 1:d2
-                pauliRight = LinearAlgebra.tr(complex(pauliOps[paulict2])*tmpKrauss')/d;
+                pauliRight = LinearAlgebra.tr(pauliOps[paulict2]*transpose(tmpKrauss))/d;
                 chi[paulict1, paulict2] = chi[paulict1, paulict2] + vals[kraussct]*pauliLeft*pauliRight;
             end
         end
     end
     return chi
 end
+
+###############################################################################
+## Fidelity tools for tomography ##############################################
+###############################################################################
+
+function getProcessFidelity(choi::AbstractArray, idealProcess::String)
+    nbrQubits = log2(sqrt(size(choi, 1)))
+    # Calculate the overlaps with the ideal gate
+    if typeof(idealProcess) == String
+        unitaryIdeal = str2unitary(idealProcess);
+    else
+        # assume we are passed a matrix otherwise
+        unitaryIdeal = idealProcess;
+    end
+    choiIdeal = unitary2choi(unitaryIdeal);
+
+    # Convert to chi representation to compute fidelity metrics
+    chiExp = choi2chi(choi);
+    chiIdeal = choi2chi(choiIdeal);
+
+    processFidelity = real(LinearAlgebra.tr(chiExp*chiIdeal));
+    gateFidelity = (2^nbrQubits*processFidelity+1)/(2^nbrQubits+1);
+
+    return processFidelity, gateFidelity
+end
+
+# TO-DO: implement plotting
+
+# Create the pauli operator strings
+# pauliStrs = allpaulis(nbrQubits);
+
+# Create the pauli map for plotting
+# pauliMapIdeal = choi2pauliMap(choiIdeal);
+# pauliMapLSQ = choi2pauliMap(choiLSQ);
+# pauliMapExp = choi2pauliMap(choiSDP);
