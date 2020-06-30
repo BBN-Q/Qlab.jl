@@ -35,14 +35,16 @@ function choi2pauliMap(choi::AbstractArray)
     d2 = size(choi,1);
 
     #Create the Pauli opearators for n qubits
-    pauliOps = map(x -> complex(x), vec(allpaulis(log2(sqrt(d2)))));
+    num_qubits = Int(log2(sqrt(d2)))
+    pauliOps = map(x -> complex(x), vec(permutedims(allpaulis(num_qubits),
+                                    reverse(collect(1:num_qubits)))));
 
     pauliMap = zeros(d2,d2);
     for ct1 in 1:d2
         p1 = pauliOps[ct1]
         for ct2 in 1:d2
             p2 = pauliOps[ct2]
-            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*kron(transpose(p1),p2)));
+            pauliMap[ct2,ct1] = real(LinearAlgebra.tr(choi*kron(transpose(p2), p1)));
         end
     end
     return pauliMap
@@ -189,11 +191,11 @@ operators are supported.
 Ex:
   julia> PauliPlot(str2unitary("1QY90p"), save_fig=true)
 """
-function PauliPlot(U::AbstractMatrix; save_fig=false)
+function PauliPlot(U::AbstractMatrix; save_fig::Bool=false)
     num_qubits = Int(log2(size(U,1)))
     op_num = 0:(4^num_qubits - 1)
     # This code snippet works for n-qubit unitaries, it's just not that
-    # verbose in what its doing...
+    # verbose in what its doing...  It creates the Pauli string labels.
     snip(s::String) = s[nextind(s,1):end];
     labels = map(p -> snip(string(p)),
                  vec(permutedims(allpaulis(num_qubits),
