@@ -179,3 +179,51 @@ end
 # pauliMapIdeal = choi2pauliMap(choiIdeal);
 # pauliMapLSQ = choi2pauliMap(choiLSQ);
 # pauliMapExp = choi2pauliMap(choiSDP);
+
+"""
+    PauliPlot(U::AbstractMatrix)
+
+Plot the Pauli transfer matrix of an n-qubit operator unitary U. 
+
+Ex:
+  julia> PauliPlot(str2unitary("1QY90p"))
+"""
+function PauliPlot(U::AbstractMatrix)
+    num_qubits = log2(size(U,1))
+    op_num = 0:(4^num_qubits - 1)
+    # This code snippet works for n-qubit unitaries, it's just not that
+    # verbose...
+    snip(s::String) = s[nextind(s,1):end];
+    labels = map(p -> snip(string(p)),
+                 vec(permutedims(allpaulis(num_qubits),
+                 reverse(collect(1:num_qubits)))))
+    # if num_qubits == 1
+    #     labels = ["I", "X", "Y", "Z"]
+    # elseif num_qubits == 2
+    #     labels = ["II","IX","IY","IZ",
+    #               "XI","XX","XY","XZ",
+    #               "YI","YX","YY","YZ",
+    #               "ZI","ZX","ZY","ZZ"]
+    # else
+    #     labels = []
+    # end
+    fig = figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(unitary2pauli(U), cmap="bwr")
+    fig.colorbar(cax)
+
+    ax.set_xticklabels(labels)
+    ax.set_yticklabels(labels)
+    ax.set_xticks(op_num)
+    ax.set_yticks(op_num)
+    ax.xaxis.set_ticks_position("bottom")
+    ax.grid(color="grey", linestyle="--", alpha=0.1)
+    ax.spines["right"].set_visible(false)
+    ax.spines["top"].set_visible(false)
+    ax.spines["left"].set_visible(false)
+    ax.spines["bottom"].set_visible(false)
+    ax.set_xlabel("Input Pauli Operator")
+    ax.set_ylabel("Output Pauli Operator")
+
+    fig.show()
+end
