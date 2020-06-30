@@ -181,18 +181,19 @@ end
 # pauliMapExp = choi2pauliMap(choiSDP);
 
 """
-    PauliPlot(U::AbstractMatrix)
+    PauliPlot(U::AbstractMatrix; save_fig=false)
 
-Plot the Pauli transfer matrix of an n-qubit operator unitary U. 
+Plot the Pauli transfer matrix of an operator U.  Only one and two qubit
+operators are supported.
 
 Ex:
-  julia> PauliPlot(str2unitary("1QY90p"))
+  julia> PauliPlot(str2unitary("1QY90p"), save_fig=true)
 """
-function PauliPlot(U::AbstractMatrix)
-    num_qubits = log2(size(U,1))
+function PauliPlot(U::AbstractMatrix; save_fig=false)
+    num_qubits = Int(log2(size(U,1)))
     op_num = 0:(4^num_qubits - 1)
     # This code snippet works for n-qubit unitaries, it's just not that
-    # verbose...
+    # verbose in what its doing...
     snip(s::String) = s[nextind(s,1):end];
     labels = map(p -> snip(string(p)),
                  vec(permutedims(allpaulis(num_qubits),
@@ -225,5 +226,9 @@ function PauliPlot(U::AbstractMatrix)
     ax.set_xlabel("Input Pauli Operator")
     ax.set_ylabel("Output Pauli Operator")
 
+    if save_fig
+        fig.savefig("PauliPlot.png")
+        println("Please rename the saved figure!")
+    end
     fig.show()
 end
