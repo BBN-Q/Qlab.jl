@@ -1,6 +1,9 @@
 using Cliffords
 import LinearAlgebra
 
+# helper to remove the first "+/-" char from Pauli string labels
+snip(s::String) = s[nextind(s,1):end];
+
 ###############################################################################
 ## Useful tools for manipulation of matrix representations in a tomography ####
 ###############################################################################
@@ -9,6 +12,20 @@ import LinearAlgebra
     unitary2choi(U::AbstractArray)
 
 Returns the Choi super operator representation of a unitary.
+
+# Arguments
+- `U`: the unitary matrix representation of the process
+
+# Returns
+- `choi`: a choi matrix representation
+
+# Examples
+julia> choi = unitary2choi(str2unitary("1QX90p"))
+4×4 Array{Complex{Float64},2}:
+ 0.25+0.0im    0.0+0.25im   0.0+0.25im  0.25+0.0im
+  0.0-0.25im  0.25+0.0im   0.25+0.0im    0.0-0.25im
+  0.0-0.25im  0.25+0.0im   0.25+0.0im    0.0-0.25im
+ 0.25+0.0im    0.0+0.25im   0.0+0.25im  0.25+0.0im
 """
 function unitary2choi(U::AbstractArray)
 
@@ -28,6 +45,21 @@ end
     choi2pauliMap(choi::AbstractArray)
 
 Converts a Choi representation to a Pauli Map representation.
+
+# Arguments
+- `choi`: the matrix representation of the process
+
+# Returns
+- `pauli_map`: a Pauli representation of the choi matrix
+
+# Examples
+julia> choi = unitary2choi(str2unitary("1QX90p"))
+julia> choi2pauliMap(choi)
+4×4 Array{Float64,2}:
+  1.0          0.0   0.0          0.0
+  0.0          1.0   0.0          0.0
+  0.0          0.0   3.33067e-16  1.0
+ -5.55112e-17  0.0  -1.0          3.33067e-16
 """
 function choi2pauliMap(choi::AbstractArray)
 
@@ -52,15 +84,47 @@ end
 
 """
     unitary2pauli(U:AbstractArray)
+
+Compute the Pauil represtation of an arbitrary unitary
+
+# Arguments
+- `U`: the matrix representation of the unitary.
+
+# Returns
+- pauli_map: Matrix{ComplexF64}
+
+# Examples
+julia> unitary2pauli(str2unitary("1QY90p"))
+4×4 Array{Float64,2}:
+  1.0          0.0          0.0   0.0
+  0.0          3.33067e-16  0.0  -1.0
+  0.0          0.0          1.0   0.0
+ -5.55112e-17  1.0          0.0   3.33067e-16
 """
 function unitary2pauli(U::AbstractArray)
     return choi2pauliMap(unitary2choi(U));
 end
 
 """
-    str2unitary
+    str2unitary(strIn::String)
 
-Converts a string description of a gate into a unitary matrix.
+Converts a string description of a gate into a unitary matrix.  Supported
+unitaries are: X_4I, IX_4, IX_2, InvCNOT12, CNOT12, CNOT21, 1QXp, 1QX22p,
+IY_2, IY, ZXm90_2, 1QHad, XX, 1QId, IX_8, 1QT, YI, X90ZX90, CNOT12_y, X90X90,
+1QX45p, ZXm90, 1QX90p, ZX90, 1QY90p, Y90Y90, 1QYp, X_8I, 1QY90m, X_2I, XZm90,
+XI, XZ90, 1QX90m, 1QZ90, II, IX, Y_2I
+
+# Arguments
+- `strIn`: string id of the unitary
+
+# Returns
+- `U`: Matrix{ComplexF64} representing the unitary transformation
+
+# Examples
+julia> str2unitary("1QX90p")
+2×2 Array{Complex{Float64},2}:
+ 0.707107+0.0im            0.0-0.707107im
+      0.0-0.707107im  0.707107+0.0im
 """
 function str2unitary(strIn::String)
 
@@ -115,6 +179,18 @@ end
     choi2chi(choi::AbstractArray)
 
 Converts a Choi superoperator to a chi represtation in Pauli basis.
+
+# Arguments
+- `choi`: the matrix representation of the process
+
+# Returns
+- `chi`: chi matrix representation of the process
+
+# Examples
+julia> using RandomQuantum
+julia> U = rand(RandomClosedEvolution(2,2))
+julia> choi = unitary2choi(U)
+julia> choi2chi(choi)
 """
 function choi2chi(choi::AbstractArray)
 
@@ -131,7 +207,10 @@ function choi2chi(choi::AbstractArray)
 
     chi = zeros(ComplexF64,d2,d2);
 
-    pauliOps = map(x -> complex(x), allpaulis(log2(d)));
+    #Create the Pauli opearators for n qubits
+    num_qubits = Int(log2(sqrt(d2)));
+    pauliOps = map(x -> complex(x), vec(permutedims(allpaulis(num_qubits),
+                                    reverse(collect(1:num_qubits)))));
 
     # Transform from the Krauss basis to the Pauli basis
     for kraussct in 1:size(vals,1)
@@ -148,9 +227,25 @@ function choi2chi(choi::AbstractArray)
 end
 
 ###############################################################################
-## Fidelity tools for tomography ##############################################
+## Fidelity and plotting tools for tomography #################################
 ###############################################################################
+"""
+    getProcessFidelity(choi::AbstractArray, idealProcess::String)
 
+Compute the gate and process fidelity for a give Choi matrix and a given ideal
+process matrix.
+
+# Arguments
+- `choi`: the matrix representation of the process
+- `idealProcess`: string representing the ideal process in str2unitary()
+
+# Returns
+- `processFidelity`: -> real(tr(choi*choiIdeal))
+- `gateFidelity`: -> (d*processFidelity +1)/(d + 1)
+
+# Examples
+julia> getProcessFidelity(choi, "XI")
+"""
 function getProcessFidelity(choi::AbstractArray, idealProcess::String)
     nbrQubits = log2(sqrt(size(choi, 1)))
     # Calculate the overlaps with the ideal gate
@@ -162,44 +257,71 @@ function getProcessFidelity(choi::AbstractArray, idealProcess::String)
     end
     choiIdeal = unitary2choi(unitaryIdeal);
 
-    # Convert to chi representation to compute fidelity metrics
-    chiExp = choi2chi(choi);
-    chiIdeal = choi2chi(choiIdeal);
-
-    processFidelity = real(LinearAlgebra.tr(chiExp*chiIdeal));
+    processFidelity = real(LinearAlgebra.tr(choi*choiIdeal));
     gateFidelity = (2^nbrQubits*processFidelity+1)/(2^nbrQubits+1);
 
     return processFidelity, gateFidelity
 end
 
-# TO-DO: implement plotting
+"""
+    getProcessFidelity(choi::AbstractArray, idealProcess::AbstractMatrix)
 
-# Create the pauli operator strings
-# pauliStrs = allpaulis(nbrQubits);
+Compute the gate and process fidelity for a give Choi matrix and a given ideal
+unitary.
 
-# Create the pauli map for plotting
-# pauliMapIdeal = choi2pauliMap(choiIdeal);
-# pauliMapLSQ = choi2pauliMap(choiLSQ);
-# pauliMapExp = choi2pauliMap(choiSDP);
+# Arguments
+- `choi`: the matrix representation of the process
+- `idealProcess`: matrix representing the ideal process unitary
+
+# Returns
+- `processFidelity`: -> real(tr(choi*choiIdeal))
+- `gateFidelity`: -> (d*processFidelity +1)/(d + 1)
+
+# Examples
+julia> getProcessFidelity(choi, U)
+"""
+function getProcessFidelity(choi::AbstractArray, idealProcess::AbstractMatrix)
+    nbrQubits = log2(sqrt(size(choi, 1)))
+    # Calculate the overlaps with the ideal gate
+    choiIdeal = unitary2choi(idealProcess);
+
+    processFidelity = real(LinearAlgebra.tr(choi*choiIdeal));
+    gateFidelity = (2^nbrQubits*processFidelity+1)/(2^nbrQubits+1);
+
+    return processFidelity, gateFidelity
+end
 
 """
-    PauliPlot(U::AbstractMatrix; save_fig=false)
+    PlotProcess(U::AbstractMatrix; p_map::String="pauli", save_fig::Bool=false)
 
 Plot the Pauli transfer matrix of an operator U.  Only one and two qubit
 operators are supported.
 
-Ex:
-  julia> PauliPlot(str2unitary("1QY90p"), save_fig=true)
+# Arguments
+- `U`: the matrix representation of the unitary you want to plot.
+- `p_map`: which process map to use {"pauli", "chi"}.  "pauli" will plot the
+           Pauli transfer matrix and "chi" will plot the chi matrix.
+- `save_fig`: set to true if you want a .png of the figure saved in the current
+              directory.
+
+# Returns
+- void: The function outputs a plot
+
+# Examples
+julia> PauliPlot(str2unitary("1QY90p"), save_fig=true)
 """
-function PauliPlot(U::AbstractMatrix; save_fig::Bool=false)
+function PlotProcess(U::AbstractMatrix;
+                     p_map::String="pauli",
+                     save_fig::Bool=false)
+
     num_qubits = Int(log2(size(U,1)))
     op_num = 0:(4^num_qubits - 1)
     # This code snippet works for n-qubit unitaries, it's just not that
-    # verbose in what its doing...  It creates the Pauli string labels.
-    snip(s::String) = s[nextind(s,1):end];
+    # verbose...
     labels = map(p -> snip(string(p)),
                  vec(permutedims(allpaulis(num_qubits),
                  reverse(collect(1:num_qubits)))))
+    # a more verbose and brittle option would be something like:
     # if num_qubits == 1
     #     labels = ["I", "X", "Y", "Z"]
     # elseif num_qubits == 2
@@ -212,7 +334,14 @@ function PauliPlot(U::AbstractMatrix; save_fig::Bool=false)
     # end
     fig = figure()
     ax = fig.add_subplot(111)
-    cax = ax.matshow(unitary2pauli(U), cmap="bwr")
+    if p_map == "pauli"
+        cax = ax.matshow(unitary2pauli(U), cmap="bwr")
+        ax.set_title("Pauli transfer matrix")
+    elseif p_map == "chi"
+        cax = ax.matshow(real(choi2chi(unitary2choi(U))), cmap="bwr")
+        ax.set_title(L"$\chi$ process matrix")
+    end
+
     fig.colorbar(cax)
 
     ax.set_xticklabels(labels)
@@ -229,7 +358,7 @@ function PauliPlot(U::AbstractMatrix; save_fig::Bool=false)
     ax.set_ylabel("Output Pauli Operator")
 
     if save_fig
-        fig.savefig("PauliPlot.png")
+        fig.savefig("ProcessPlot.png")
         println("Please rename the saved figure!")
     end
     fig.show()
