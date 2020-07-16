@@ -306,11 +306,25 @@ function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, gr
     return datavec, T1vec, y0vec
 end
 
-function blob(x, y, w, w_max, area; cmap=nothing)
-    """
-    Draws a square-shaped blob with the given area (< 1) at
-    the given coordinates.
-    """
+"""
+    _blob(x::Float64, y::Float64, w::Float64, w_max::Float64, area::Float64; cmap=nothing)
+
+Draws a square-shaped blob with the given area (< 1) at
+the given (x,y) coordinates.
+
+# Arguments
+- `x, y::Float64`:  Grid location for the center of the blob
+- `w::Float64`   :  Weight of the square realtive to the largest square, w_max.
+                    This is used to build the color map.
+- `w_max::Float64`: Weight of the largest square.
+- `area::Float64`: total area of the square
+"""
+function _blob(x::Float64,
+              y::Float64,
+              w::Float64,
+              w_max::Float64,
+              area::Float64; cmap=nothing)
+
     hs = sqrt(area) / 2
     xcorners = [x - hs, x + hs, x + hs, x - hs]
     ycorners = [y - hs, y - hs, y + hs, y + hs]
@@ -319,20 +333,52 @@ function blob(x, y, w, w_max, area; cmap=nothing)
              color=cmap(round(Int64,((w + w_max) * 256 / (2 * w_max)))))
 end
 
-function hinton(W; xlabels=nothing, ylabels=nothing, title=nothing, ax=nothing, cmap=nothing,label_top=true)
+"""
+    hinton(W::AbstractMatrix;
+           xlabels::String=nothing,
+           ylabels::String=nothing,
+           title::String=nothing,
+           ax=nothing,
+           cmap::ColorMap=nothing,
+           label_top::Bool=true)
 
-    if cmap==nothing
+Create a Hinton diagram from matrix data W.
+
+# Arguments
+- `W::AbstractMatrix`: Matrix data to be plotted
+- `xlabels, ylabels, title::String`: labels and title
+- `ax::Axes`: axis to label/plot onto
+- `cmap::ColorMap`: color map for the Hinton diagram
+
+# Returns
+- `fig`: plot figure
+- `ax` : plot axes
+"""
+function hinton(W::AbstractMatrix;
+                xlabels::String="",
+                ylabels::String="",
+                title::String="",
+                ax=nothing,
+                cmap=nothing,
+                label_top::Bool=true)
+
+    if cmap == nothing
         cmap = ColorMap("RdBu")
     end
 
-    if ax==nothing
+    if ax == nothing
         fig, ax = subplots(1, 1, figsize=(8, 6))
     else
         fig = nothing
     end
 
-    if xlabels==nothing || ylabels==nothing
+    if xlabels == "" || ylabels == ""
         ax.axis("off")
+    else
+        ax.tick_params(axis="x", labelsize=14)
+        ax.tick_params(axis="y", labelsize=14)
+        ax.xaxis.set_major_locator(plt.IndexLocator(1, 0.5))
+        ax.yaxis.set_major_locator(plt.IndexLocator(1, 0.5))
     end
 
     ax.axis("equal")
@@ -352,10 +398,10 @@ function hinton(W; xlabels=nothing, ylabels=nothing, title=nothing, ax=nothing, 
             _x = x
             _y = y
             if real(W[x, y]) > 0.0
-                blob(_x - 0.5, height - _y + 0.5, abs(W[x,
+                _blob(_x - 0.5, height - _y + 0.5, abs(W[x,
                       y]), w_max, min(1, abs(W[x, y]) / w_max), cmap=cmap)
             else
-                blob(_x - 0.5, height - _y + 0.5, -abs(W[
+                _blob(_x - 0.5, height - _y + 0.5, -abs(W[
                       x, y]), w_max, min(1, abs(W[x, y]) / w_max), cmap=cmap)
             end
         end
@@ -368,23 +414,18 @@ function hinton(W; xlabels=nothing, ylabels=nothing, title=nothing, ax=nothing, 
     matplotlib.colorbar.ColorbarBase(cax, norm=norm, cmap=cmap)
 
     # x axis
-    ax.xaxis.set_major_locator(plt.IndexLocator(1, 0.5))
 
-    if xlabels!=nothing
+    if xlabels != ""
         ax.set_xticklabels(xlabels)
-        if label_top!=nothing
+        if label_top
             ax.xaxis.tick_top()
         end
     end
-    ax.tick_params(axis="x", labelsize=14)
 
     # y axis
-    ax.yaxis.set_major_locator(plt.IndexLocator(1, 0.5))
-    if ylabels!=nothing
+    if ylabels != ""
         ax.set_yticklabels((reverse(ylabels)))
     end
-
-    ax.tick_params(axis="y", labelsize=14)
 
     return fig, ax
 end
