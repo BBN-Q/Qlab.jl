@@ -1,4 +1,4 @@
-using KernelDensity, Formatting, PyPlot, Seaborn
+using KernelDensity, Formatting, PyPlot, Seaborn, LinearAlgebra
 # using Formatting
 #collection of commonly used plots
 function plot_ss_hists(shots_0, shots_1)
@@ -304,4 +304,88 @@ function load_T1_series(datapath::AbstractString, numstart::Int, numend::Int, gr
         datavec[:,k] = data_values
     end
     return datavec, T1vec, y0vec
+end
+
+function blob(x, y, w, w_max, area; cmap=nothing)
+    """
+    Draws a square-shaped blob with the given area (< 1) at
+    the given coordinates.
+    """
+    hs = sqrt(area) / 2
+    xcorners = [x - hs, x + hs, x + hs, x - hs]
+    ycorners = [y - hs, y - hs, y + hs, y + hs]
+
+    plt.fill(xcorners, ycorners,
+             color=cmap(round(Int64,((w + w_max) * 256 / (2 * w_max)))))
+    print(((w + w_max) * 256 / (2 * w_max)))
+end
+
+function hinton(W; xlabels=nothing, ylabels=nothing, title=nothing, ax=nothing, cmap=nothing,label_top=true)
+
+    if cmap==nothing
+        cmap = ColorMap("RdBu")
+    end
+
+    if ax==nothing
+        fig, ax = subplots(1, 1, figsize=(8, 6))
+    else
+        fig = nothing
+    end
+
+    if xlabels==nothing || ylabels==nothing
+        ax.axis("off")
+    end
+
+    ax.axis("equal")
+    ax.set_frame_on(false)
+
+    height, width = size(W)
+
+    w_max = 1.25 * maximum(abs.(Diagonal(W)))
+    if w_max <= 0.0
+        w_max = 1.0
+    end
+
+    ax.fill([0, width, width, 0], [0, 0, height, height],color=cmap(128))
+
+    for x=1:width
+        for y=1:height
+            _x = x
+            _y = y
+            if real(W[x, y]) > 0.0
+                blob(_x - 0.5, height - _y + 0.5, abs(W[x,
+                      y]), w_max, min(1, abs(W[x, y]) / w_max), cmap=cmap)
+            else
+                blob(_x - 0.5, height - _y + 0.5, -abs(W[
+                      x, y]), w_max, min(1, abs(W[x, y]) / w_max), cmap=cmap)
+            end
+        end
+    end
+
+    # color axis
+
+    norm = matplotlib.colors.Normalize(-maximum(abs.(W)), maximum(abs.(W)))
+    cax, kw = matplotlib.colorbar.make_axes(ax, shrink=0.75, pad=.1)
+    matplotlib.colorbar.ColorbarBase(cax, norm=norm, cmap=cmap)
+
+    # x axis
+    ax.xaxis.set_major_locator(plt.IndexLocator(1, 0.5))
+
+    if xlabels!=nothing
+        ax.set_xticklabels(xlabels)
+        if label_top!=nothing
+            ax.xaxis.tick_top()
+        end
+    end
+    ax.tick_params(axis="x", labelsize=14)
+
+    # y axis
+    ax.yaxis.set_major_locator(plt.IndexLocator(1, 0.5))
+    if ylabels!=nothing
+        ax.set_yticklabels((reverse(ylabels)))
+    end
+
+    ax.tick_params(axis="y", labelsize=14)
+
+    return fig, ax
 end

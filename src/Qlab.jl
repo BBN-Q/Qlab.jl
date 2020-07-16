@@ -1,7 +1,7 @@
 module Qlab
 	using Compat, PyPlot
 
-	export load_data, load_latest_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitzky_golay, read_records, digitize, unwrap, unwrap!, plot2D, plot1D
+	export load_data, load_latest_data, KT_estimation, pauliAlphabet, filter_records, comp_to_paulis, savitzky_golay, read_records, digitize, unwrap, unwrap!, plot2D, plot1D, hinton
 
 	include("load_data.jl")
 	include("KT_estimation.jl")
