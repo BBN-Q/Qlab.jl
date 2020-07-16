@@ -317,7 +317,6 @@ function blob(x, y, w, w_max, area; cmap=nothing)
 
     plt.fill(xcorners, ycorners,
              color=cmap(round(Int64,((w + w_max) * 256 / (2 * w_max)))))
-    print(((w + w_max) * 256 / (2 * w_max)))
 end
 
 function hinton(W; xlabels=nothing, ylabels=nothing, title=nothing, ax=nothing, cmap=nothing,label_top=true)
