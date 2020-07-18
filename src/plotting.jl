@@ -355,8 +355,8 @@ Create a Hinton diagram from matrix data W.
 - `ax` : plot axes
 """
 function hinton(W::AbstractMatrix;
-                xlabels::String="",
-                ylabels::String="",
+                xlabels::Array{String}="",
+                ylabels::Array{String}="",
                 title::String="",
                 ax=nothing,
                 cmap=nothing,
