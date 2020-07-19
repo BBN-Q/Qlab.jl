@@ -335,8 +335,8 @@ end
 
 """
     hinton(W::AbstractMatrix;
-           xlabels::String=nothing,
-           ylabels::String=nothing,
+           xlabels::Array{String}="",
+           ylabels::Array{String}="",
            title::String=nothing,
            ax=nothing,
            cmap::ColorMap=nothing,
@@ -346,7 +346,8 @@ Create a Hinton diagram from matrix data W.
 
 # Arguments
 - `W::AbstractMatrix`: Matrix data to be plotted
-- `xlabels, ylabels, title::String`: labels and title
+- `xlabels, ylabels::Array{String}`: labels
+- `title::String`: title
 - `ax::Axes`: axis to label/plot onto
 - `cmap::ColorMap`: color map for the Hinton diagram
 
