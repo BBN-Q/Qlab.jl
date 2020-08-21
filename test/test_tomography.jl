@@ -169,7 +169,7 @@ function test_tomo_obj(num_obs)
     LSQ_tomo = LSStateTomo(obs);
     ρest, obj, status = fit(LSQ_tomo, LSQ_data, LSQ_var);
     @test status == :Optimal
-    @test trnorm(ρ-ρest) < 3e-2
+    @test trnorm(ρ-ρest) < 5e-2
 
     # pack the data as the analyzeStateTomo function expects
     data = Dict{String,Dict{String,Array{Any,N} where N}}("q1-main"=>Dict("data"=>LSQ_data, "variance"=>LSQ_var))
