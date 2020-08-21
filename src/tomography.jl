@@ -97,7 +97,7 @@ function tomo_gate_set(nbrQubits, nbrAxes; pulse_type="Clifford", prep_meas = 1)
 end
 
 """
-    QST_LSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
+    QST_FLSQ(expResults, varMat, measPulseMap, measOpMap, measPulseUs, measOps)
 
 Function to perform unconstrained least-squares inversion of state
 tomography data.
@@ -400,7 +400,7 @@ end
 Determine the number of calibration points, calibration repeats, axes in a
 given tomography data set.  Helper function for the StateTomo structure.  This
 function makes many assumptions about the structure of the data and is built
-using heuristics.  YOur milage may vary
+using heuristics.  Your milage may vary.
 
 # Arguments
 - `n` : total number of experimental data points including
@@ -562,10 +562,11 @@ function _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
                                                       tomoDataSets,
                                                       shotDataSets
 end
+
 """
 State tomography object
 
-This holds all the infromation necessary to do state and process tomography.
+This holds all the infromation necessary to do state tomography.
 
 The object is constructed by passing it a tomography dataset and its descriptor
 loaded from load_data.  Once created, this object can be passed directly to the
@@ -753,8 +754,67 @@ function rho2pauli(ρ)
     return paulivec, paulis
 end
 
+
+## Process tomography is still a WIP
+
 """
-    analyzeProcessTomo(tomo::StateTomo)
+Process tomography object
+
+This holds all the infromation necessary to do process tomography.
+
+The object is constructed by passing it a tomography dataset and its descriptor
+loaded from load_data.  Once created, this object can be passed directly to the
+any of the tomographyic reconstruction methods.
+"""
+struct ProcessTomo
+    numQubits::Int
+    numDatasets::Int
+    corrData::Bool
+    varData::Bool
+
+    tomoDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
+    shotDataSets::Dict{String,Dict{String,Array{Any,N} where N}}
+
+    numAxes::Int
+    numCals::Int
+    numCalRepeats::Int
+    numDataPoints::Int
+
+    mlPOVM::Array{Matrix{ComplexF64}}
+
+    """
+    Basic constructor
+    """
+    function ProcessTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
+                        desc::Dict{String,Any})
+
+        numQubits,
+        numDatasets,
+        corrData,
+        varData,
+        numDataPoints,
+        tomoDataSets,
+        shotDataSets = _pre_process_data(data, desc)
+
+        ############################################################
+        numCals, numCalRepeats, numAxes = _parese_exp_num(numDataPoints,
+                                                          numQubits)
+        ################################################################
+        mlPOVM = _create_ml_POVM(numQubits)
+        ################################################################
+        new(numQubits, numDatasets, corrData, varData, tomoDataSets,
+                                                       shotDataSets,
+                                                       numAxes,
+                                                       numCals,
+                                                       numCalRepeats,
+                                                       numDataPoints,
+                                                       mlPOVM)
+    end
+end
+
+
+"""
+    analyzeProcessTomo(tomo::ProcessTomo)
 
 Function to setup and run quantum process tomography for a given number
 of qubits and measurement axes.
