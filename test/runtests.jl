@@ -11,4 +11,5 @@ using Qlab
 include("test_digitize.jl")
 include("test_common_fits.jl")
 include("test_SavitzkyGolay.jl")
-include("test_tomography.jl")
+include("test_state_tomo.jl")
+#include("test_process_tomo.jl")
