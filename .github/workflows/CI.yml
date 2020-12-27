@@ -37,8 +37,9 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@latest
-      - name: Setup PyCall deps
+      - name: Setup python deps
         run: julia -e 'using Pkg; Pkg.add("Conda");using Conda; Conda.add("matplotlib"); Conda.add("seaborn")'
+      - name: Setup PyCall
         run: julia -e 'using Pkg; Pkg.add("PyCall"); ENV["PYTHON"]=""; Pkg.build("PyCall")'
       - uses: julia-actions/julia-runtest@latest
         continue-on-error: ${{ matrix.version == 'nightly' }}
