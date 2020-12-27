@@ -35,6 +35,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
+Conda = "1.5"
 Convex = "^0.12.3"
 Distributions = "^0"
 QuantumTomography = "0.1.1"
