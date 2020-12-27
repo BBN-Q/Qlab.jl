@@ -1,4 +1,6 @@
-[![Build Status](https://travis-ci.org/BBN-Q/Qlab.jl.svg?branch=master)](https://travis-ci.org/BBN-Q/Qlab.jl)
+![Build Status](https://github.com/BBN-Q/Qlab.jl/workflows/CI/badge.svg)
+
+[![codecov](https://codecov.io/gh/BBN-Q/Qlab.jl/branch/master/graph/badge.svg?token=MvxAbHBcKL)](https://codecov.io/gh/BBN-Q/Qlab.jl)
 
 Qlab.jl
 ==========
