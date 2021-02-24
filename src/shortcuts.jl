@@ -89,6 +89,59 @@ function cal_data(data::Tuple{Dict{String,Array{Any,N} where N},Dict{String,Any}
 end
 
 """
+ cal_data2qb(data;nbrQubits::Int = 2,nbrCalRepeats::Int = 2)
+
+ Normalize 1 or 2 qubit data with reference measurements defined in metadata. for 2 qubits it calibrates single qubit data and the correlator.
+
+ # Arguments
+   - `data`: dictionary (Auspex format)
+   - `nbrQubits` :Int
+   - `nbrCalRepeats` : Int
+"""
+function cal_data2qb(data;nbrQubits::Int = 2,nbrCalRepeats::Int = 2)
+
+    Z1 = zeros(1,length(data["q1-main"]["data"][1:end])-0*nbrCalRepeats*(2^nbrQubits))
+    Z2 = zeros(1,length(data["q1-main"]["data"][1:end])-0*nbrCalRepeats*(2^nbrQubits))
+    Z12 = zeros(1,length(data["q1-main"]["data"][1:end])-0*nbrCalRepeats*(2^nbrQubits))
+
+    if nbrQubits==1
+
+        M1 = real(data["q1-main"]["data"][1:end])
+
+        zero_cal = mean(M1[end-num_repeats*2+1:end-num_repeats])
+        one_cal = mean(M1[end:end-num_repeats+1])
+        scale_factor = -(one_cal - zero_cal)/2;
+        Z1 = (data .- zero_cal)/scale_factor .+ 1
+        Z2 = []
+        Z3 = []
+    elseif nbrQubits==2
+        M1 = real(data["q1-main"]["data"][1:end])
+        M2 = real(data["q2-main"]["data"][1:end])
+        M12 = real(data["correlate"]["data"][1:end])
+
+        M1c = M1[floor(end-nbrCalRepeats*(2^nbrQubits )+1):end]
+        M2c = M2[floor(end-nbrCalRepeats*(2^nbrQubits )+1):end]
+        M12c = M12[floor(end-nbrCalRepeats*(2^nbrQubits )+1):end]
+
+        avgCalData = mean(reshape([M1c;M2c;M12c], nbrCalRepeats, 3*2^nbrQubits), dims=1)
+        coeffs = T*avgCalData'
+
+        #Calibrate data, 2-qubits
+        T2 = zeros(12,12)
+        T2 = vcat(coeffs[1:3]',coeffs[5:7]',coeffs[9:11]')
+
+        for k in 1:length(M1)-0*nbrCalRepeats*(2^nbrQubits)
+            Zs = inv(T2)*[M1[k]-coeffs[4],M2[k]-coeffs[8],M12[k]-coeffs[12]]
+            Z1[k] = Zs[1]
+            Z2[k] = Zs[2]
+            Z12[k] = Zs[3]
+        end
+    end
+
+    return Z1,Z2,Z12
+end
+
+"""
     get_fidelity(shots_0, shots_1; nbins=51, showPlot=false)
 
 Get readout fidelity from single-shot measurements

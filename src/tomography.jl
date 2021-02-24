@@ -652,8 +652,9 @@ function analyzeStateTomo(tomoObj::StateTomo)
     varData = Float64[]
     numMeas = length(data)
 
-    # mlTomoData = Float64[]
-    # mlVarData = Float64[]
+    mlMeasOps = Matrix{Float64}[]
+    mlTomoData = Float64[]
+    mlVarData = Float64[]
 
     # For LSQ reconstruction - make the observables out of un-scaled
     # calibration points.  Note these do not form a POVM
@@ -687,6 +688,39 @@ function analyzeStateTomo(tomoObj::StateTomo)
     # Use a helper to get the measurement unitaries.
     measPulseUs = Qlab.tomo_gate_set(nbrQubits, nbrAxes)
 
+    #For ML tomography we compute ideal projectors from the measurements in the Z basis
+
+    Z1,Z2,Z12 = qlab.cal_data2qb(data,2)
+
+    if nbrQubits == 1
+       P0 = 0.5*(Z1[1:end-2*nbrCalRepeats]+1)
+       #P1 = 1 .- 0.5*(Z1[1:end-2*nbrCalRepeats]+1) #Do we need P1 in he POVM?
+
+       append!(mlTomoData, real(P0))
+
+       append!(mlVarData, data["q1-main"]["variance"][1:end-2*nbrCalRepeats])
+
+    elseif nbrQubits == 2
+
+       #Compute ideal projectors
+       P00 = 0.25*(Z1[1:end-4*nbrCalRepeats]+Z2[1:end-4*nbrCalRepeats]+Z12[1:end-4*nbrCalRepeats] .+ 1)
+       P01 = 0.25*(1 .+ Z1[1:end-4*nbrCalRepeats]-Z2[1:end-4*nbrCalRepeats]-Z12[1:end-4*nbrCalRepeats])
+       P10 = 0.25*(1 .-Z12[1:end-4*nbrCalRepeats]-Z1[1:end-4*nbrCalRepeats]+Z2[1:end-4*nbrCalRepeats])
+       #P11 = 0.25*(1 .+ Z12[1:end-8] - Z1[1:end-8] -Z2[1:end-8]) #Do we need P11?
+
+       append!(mlTomoData, real(P00))
+       append!(mlTomoData, real(P01))
+       append!(mlTomoData, real(P10))
+
+       var1 =  data["q1-main"]["variance"][1:end-4*nbrCalRepeats]
+       var2 =  data["q2-main"]["variance"][1:end-4*nbrCalRepeats]
+       var12 = data["correlate"]["variance"][1:end-4*nbrCalRepeats]
+
+       append!(mlVarData, real( (1/16)*(var1+var2+var12)))
+       append!(mlVarData, real( (1/16)*(var1+var2+var12)))
+       append!(mlVarData, real( (1/16)*(var1+var2+var12)))
+    end
+
     # Now call the inversion routines
     # First least squares
     rhoLSQ = QST_LSQ(tomoData,
@@ -706,7 +740,8 @@ function analyzeStateTomo(tomoObj::StateTomo)
     # The one exception to this is single qubit data where measurements form a
     # proper POVM.  In experimental language this is the case where we take six
     # data points for the state reconstruction
-    if nbrAxes == 6 && nbrQubits == 1
+
+    if nbrQubits <= 2
         rhoML = QST_ML(tomoData,
                        measPulseMap,
                        measOpMap,
