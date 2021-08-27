@@ -85,7 +85,7 @@ end
 """
     unitary2pauli(U:AbstractArray)
 
-Compute the Pauil represtation of an arbitrary unitary
+Compute the Pauli representation of an arbitrary unitary
 
 # Arguments
 - `U`: the matrix representation of the unitary.
@@ -362,4 +362,36 @@ function PlotProcess(U::AbstractMatrix;
         println("Please rename the saved figure!")
     end
     fig.show()
+end
+
+"""
+    PauliToCounts(Z::AbstractArray,nbrQubits)
+
+Convert a set of 2^nbrQubits-1 of SigmaZ_j and correlator SigmaZ_iSigmaZ_j... expectation values into state populations (expectation value of projection operators)
+
+# Arguments
+- `Z`: array of SigmaZ expectation values. Z[k] is the expectation value of a product of I and Z operators corresponding to the binary value of k.
+        So for example if k=0110 , Z[k]=<IZZI> . Z needs to have size of 2^nbrQubits-1
+- `nbrQubits`: number of Qubits.
+
+# Returns
+- Array of projector expectation values
+
+# Examples
+julia> PauliToCounts([1,1,1],2)
+"""
+function PauliToCounts(Z::AbstractArray,nbrQubits)
+  P = ones(1,2^nbrQubits)
+
+  for k in 0:2^nbrQubits-1
+       kbin = digits!(zeros(Int64,nbrQubits),k,base=2)
+       kbin = -2*kbin .+ 1
+
+       for h in 1:2^nbrQubits-1
+           hbin = digits!(zeros(Int64,nbrQubits),h,base=2)
+           P[k+1] += prod(sign.(kbin.*hbin .+ 0.5))*Z[h]
+       end
+
+   end
+   return P/2^nbrQubits
 end
