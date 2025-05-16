@@ -472,6 +472,69 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
 end
 
 """
+     _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
+
+Same as _parese_exp_num, but for process tomography
+"""
+function _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
+
+    # Assume zero cals as a base case for calibration or manual data scaling
+    numCalRepeats = 0
+    numCals = 0
+    nbr_basis_states = (numQubits == 1) ? 2 : 4
+
+    # Determine the cal repeats number
+    # Given the number of qubits and the limited possible number of observables
+    # search for a possible number of calibration repeats that matches the data
+    for i in [16,36].^numQubits
+        numCals_guess = numDataPoints - i
+        nbrRepeats_guess = numCals_guess/nbr_basis_states
+        if numDataPoints <= 6
+            # catch the case where there are no cals
+            nbrRepeats_guess = 0
+        end
+        if nbrRepeats_guess % 1 != 0
+            # correct number will be a whole number
+            continue
+        end
+        if nbrRepeats_guess < 0
+            # filter negitive guesses
+            continue
+        end
+        if !iseven(Int(nbrRepeats_guess))
+            # This is a very safe assumption
+            @warn("Assuming numCalRepeats is even!")
+            continue
+        end
+        if !ispow2(Int(nbrRepeats_guess))
+            # This is likely the case but warn the user
+            @warn("Assuming nbr repeats is a power of 2!")
+            continue
+        end
+        numCalRepeats = nbrRepeats_guess
+    end
+    if numQubits == 1 && numCalRepeats != 0
+        numCals = numCalRepeats * 2
+    elseif numQubits == 2 && numCalRepeats != 0
+        numCals = numCalRepeats * 4
+    end
+
+    #determine the number of axes
+    if numQubits == 2
+        numAxes = sqrt(sqrt(numDataPoints-numCals))
+    elseif numQubits ==1
+        numAxes = numDataPoints-numCals
+    end
+
+    # assert numAxes must equal [4,6]
+    if !(numAxes in [4,6])
+        error("Obervables must be 4 or 6.  Please check your data!")
+    end
+
+    return numCals, numCalRepeats, numAxes
+end
+
+"""
     _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
                            desc::Dict{String,Any})
 
@@ -797,7 +860,7 @@ struct ProcessTomo
         shotDataSets = _pre_process_data(data, desc)
 
         ############################################################
-        numCals, numCalRepeats, numAxes = _parese_exp_num(numDataPoints,
+        numCals, numCalRepeats, numAxes = _parese_exp_num_process(numDataPoints,
                                                           numQubits)
         ################################################################
         mlPOVM = _create_ml_POVM(numQubits)
@@ -925,7 +988,7 @@ function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measP
       meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
       push!(obs, meas_ct)
     end
-    
+
     # # in order to constrain the trace to unity, add an identity observable
     # # and a corresponding value to expResults
     # push!(obs, eye(Complex128, size(measOps[1])...))
