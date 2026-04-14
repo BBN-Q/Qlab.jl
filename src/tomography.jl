@@ -472,6 +472,69 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
 end
 
 """
+     _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
+
+Same as _parese_exp_num, but for process tomography
+"""
+function _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
+
+    # Assume zero cals as a base case for calibration or manual data scaling
+    numCalRepeats = 0
+    numCals = 0
+    nbr_basis_states = (numQubits == 1) ? 2 : 4
+
+    # Determine the cal repeats number
+    # Given the number of qubits and the limited possible number of observables
+    # search for a possible number of calibration repeats that matches the data
+    for i in [16,36].^numQubits
+        numCals_guess = numDataPoints - i
+        nbrRepeats_guess = numCals_guess/nbr_basis_states
+        if numDataPoints <= 6
+            # catch the case where there are no cals
+            nbrRepeats_guess = 0
+        end
+        if nbrRepeats_guess % 1 != 0
+            # correct number will be a whole number
+            continue
+        end
+        if nbrRepeats_guess < 0
+            # filter negitive guesses
+            continue
+        end
+        if !iseven(Int(nbrRepeats_guess))
+            # This is a very safe assumption
+            @warn("Assuming numCalRepeats is even!")
+            continue
+        end
+        if !ispow2(Int(nbrRepeats_guess))
+            # This is likely the case but warn the user
+            @warn("Assuming nbr repeats is a power of 2!")
+            continue
+        end
+        numCalRepeats = nbrRepeats_guess
+    end
+    if numQubits == 1 && numCalRepeats != 0
+        numCals = numCalRepeats * 2
+    elseif numQubits == 2 && numCalRepeats != 0
+        numCals = numCalRepeats * 4
+    end
+
+    #determine the number of axes
+    if numQubits == 2
+        numAxes = sqrt(sqrt(numDataPoints-numCals))
+    elseif numQubits ==1
+        numAxes = numDataPoints-numCals
+    end
+
+    # assert numAxes must equal [4,6]
+    if !(numAxes in [4,6])
+        error("Obervables must be 4 or 6.  Please check your data!")
+    end
+
+    return numCals, numCalRepeats, numAxes
+end
+
+"""
     _pre_process_data(data::Dict{String,Dict{String,Array{Any,N} where N}},
                            desc::Dict{String,Any})
 
@@ -797,7 +860,7 @@ struct ProcessTomo
         shotDataSets = _pre_process_data(data, desc)
 
         ############################################################
-        numCals, numCalRepeats, numAxes = _parese_exp_num(numDataPoints,
+        numCals, numCalRepeats, numAxes = _parese_exp_num_process(numDataPoints,
                                                           numQubits)
         ################################################################
         mlPOVM = _create_ml_POVM(numQubits)
@@ -844,7 +907,8 @@ function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}
     varData = Float64[]
     numMeas = length(data)
     numPreps = nbrPrepPulses^nbrQubits
-    numExps = numPreps*numMeas*nbrReadoutPulses^nbrQubits
+    numExps = numPreps*numMeas*(nbrReadoutPulses^nbrQubits)
+    nbrPulses = nbrReadoutPulses
 
     for data_q in values(data)
         # Average over calibration repeats
@@ -865,13 +929,14 @@ function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}
     # Map each experiment to the appropriate readout pulse
     measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
     measPulseMap = repeat(1:nbrPulses^nbrQubits, outer=numMeas)
+
     # Use a helper to get the measurement unitaries.
     measPulseUs = Qlab.tomo_gate_set(nbrQubits, nbrPulses)
     prepPulseUs = measPulseUs # for now, assume that preps and meas Us are the same
 
     # Now call the inversion routines
     # First least squares
-    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits)
+    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits, nbrPulses)
 
     # calculate the overlap with the ideal process
 
@@ -892,36 +957,47 @@ Function to perform least-squares inversion of process tomography data.
    + measPulseUs : array of unitaries of measurement pulses
    + measOps : array of measurement operators for each channel
 """
-function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits)
+function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits, nbrAxes)
     d = 2^nbrQubits
+    nbrObs = Int(length(expResults)/((nbrAxes^nbrQubits)^2))
+
     # construct the vector of observables for each experiment
     obs = Matrix{}[]
     preps = Matrix{}[]
-    for ct in 1:length(expResults)
-        Uprep = prepPulseUs[mod1(ct, 16)]
-        Umeas = measPulseUs[measPulseMap[mod1(ct, 48)]]
+    for ct in 1:(nbrAxes)^nbrQubits
+        Uprep = prepPulseUs[measPulseMap[mod1(ct, nbrAxes^nbrQubits)]]
+
         rhoIn = zeros(d,d)
         rhoIn[1,1] = 1
-        op = measOps[measOpMap[mod1(ct, 48)]]
 
-        preps_ct = Uprep' * rhoIn * Uprep
+        preps_ct = Uprep * rhoIn * Uprep'
         preps_ct = (preps_ct + preps_ct')/2 # force to be Hermitian
         push!(preps, preps_ct)
-        #println(LinearAlgebra.tr(preps_ct))
+        #println(preps_ct)
 
-        meas_ct = Umeas' * op * Umeas
-        meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
-        push!(obs, meas_ct)
         # note the trace of these measurement operators will NOT be close to
         # 1 given the way the data is scaled.
     end
+
+    for ct in 1: nbrAxes^nbrQubits * nbrObs
+
+    	Umeas = measPulseUs[measPulseMap[mod1(ct, nbrAxes^nbrQubits)]]
+
+    	op = measOps[measOpMap[mod1(ct, nbrObs * nbrAxes^nbrQubits)]]
+    	meas_ct = Umeas' * op * Umeas
+      meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
+      push!(obs, meas_ct)
+    end
+
     # # in order to constrain the trace to unity, add an identity observable
     # # and a corresponding value to expResults
     # push!(obs, eye(Complex128, size(measOps[1])...))
     # expResults2 = [expResults; 1]
     # # corresponding variance chosen arbitrarily (it should be very small)
     # varMat2 = [varMat; minimum(varMat)]
-    tomo = LSProcessTomo(obs, preps)
+    #println(length(preps))
+    #println(length(obs))
+    tomo = LSProcessTomo(preps,obs)
 
     choiLSQ, obj, status = fit(tomo, expResults, varMat)
     if status != :Optimal
