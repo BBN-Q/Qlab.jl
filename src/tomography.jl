@@ -187,6 +187,7 @@ function QST_LSQ(expResults,
                  measOps)
     # construct the vector of observables for each experiment
     obs = Matrix{Complex{Float64}}[]
+
     for ct in 1:length(expResults)
         U = measPulseUs[measPulseMap[ct]]
         op = measOps[measOpMap[ct]]
@@ -336,7 +337,6 @@ function analyzeStateTomo(data::Dict{String,Dict{String,Array{Any,N} where N}},
     measPulseMap = repeat(1:nbrAxes^nbrQubits, outer=numMeas)
     # Use a helper to get the measurement unitaries.
     measPulseUs = tomo_gate_set(nbrQubits, nbrAxes)
-
     # Now call the inversion routines
     # First least squares
     rhoLSQ = QST_LSQ(tomoData,
@@ -471,11 +471,6 @@ function _parese_exp_num(numDataPoints::Int, numQubits::Int)
     return numCals, numCalRepeats, numAxes
 end
 
-"""
-     _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
-
-Same as _parese_exp_num, but for process tomography
-"""
 function _parese_exp_num_process(numDataPoints::Int, numQubits::Int)
 
     # Assume zero cals as a base case for calibration or manual data scaling
@@ -749,7 +744,6 @@ function analyzeStateTomo(tomoObj::StateTomo)
     measPulseMap = repeat(1:nbrAxes^nbrQubits, outer=numMeas)
     # Use a helper to get the measurement unitaries.
     measPulseUs = Qlab.tomo_gate_set(nbrQubits, nbrAxes)
-
     # Now call the inversion routines
     # First least squares
     rhoLSQ = QST_LSQ(tomoData,
@@ -929,14 +923,14 @@ function analyzeProcessTomo(data::Dict{String,Dict{String,Array{Any,N} where N}}
     # Map each experiment to the appropriate readout pulse
     measOpMap = repeat(1:numMeas, inner=nbrPulses^nbrQubits)
     measPulseMap = repeat(1:nbrPulses^nbrQubits, outer=numMeas)
-
+    
     # Use a helper to get the measurement unitaries.
     measPulseUs = Qlab.tomo_gate_set(nbrQubits, nbrPulses)
     prepPulseUs = measPulseUs # for now, assume that preps and meas Us are the same
 
     # Now call the inversion routines
     # First least squares
-    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits, nbrPulses)
+    choiLSQ = QPT_LSQ(tomoData, varData, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits,nbrPulses)
 
     # calculate the overlap with the ideal process
 
@@ -957,7 +951,7 @@ Function to perform least-squares inversion of process tomography data.
    + measPulseUs : array of unitaries of measurement pulses
    + measOps : array of measurement operators for each channel
 """
-function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits, nbrAxes)
+function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measPulseUs, measOps, nbrQubits,nbrAxes)
     d = 2^nbrQubits
     nbrObs = Int(length(expResults)/((nbrAxes^nbrQubits)^2))
 
@@ -966,9 +960,10 @@ function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measP
     preps = Matrix{}[]
     for ct in 1:(nbrAxes)^nbrQubits
         Uprep = prepPulseUs[measPulseMap[mod1(ct, nbrAxes^nbrQubits)]]
-
+        
         rhoIn = zeros(d,d)
         rhoIn[1,1] = 1
+        
 
         preps_ct = Uprep * rhoIn * Uprep'
         preps_ct = (preps_ct + preps_ct')/2 # force to be Hermitian
@@ -980,15 +975,14 @@ function QPT_LSQ(expResults, varMat, measPulseMap, measOpMap, prepPulseUs, measP
     end
 
     for ct in 1: nbrAxes^nbrQubits * nbrObs
-
+    	
     	Umeas = measPulseUs[measPulseMap[mod1(ct, nbrAxes^nbrQubits)]]
 
     	op = measOps[measOpMap[mod1(ct, nbrObs * nbrAxes^nbrQubits)]]
     	meas_ct = Umeas' * op * Umeas
-      meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
-      push!(obs, meas_ct)
+        meas_ct = (meas_ct + meas_ct')/2 # force to be Hermitian
+        push!(obs, meas_ct)
     end
-
     # # in order to constrain the trace to unity, add an identity observable
     # # and a corresponding value to expResults
     # push!(obs, eye(Complex128, size(measOps[1])...))
